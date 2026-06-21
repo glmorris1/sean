@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sean</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js" defer></script>
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <div class="app-shell" data-theme="dark">
+      <header class="browser-chrome">
+        <div class="window-controls" aria-hidden="true">
+          <span class="control close"></span>
+          <span class="control minimize"></span>
+          <span class="control zoom"></span>
+        </div>
+        <nav class="tabs" aria-label="Browser tabs">
+          <button class="tab active" type="button">
+            <i data-lucide="activity"></i>
+            <span>Sean Chart</span>
+            <i data-lucide="x"></i>
+          </button>
+          <button class="tab" type="button">
+            <i data-lucide="newspaper"></i>
+            <span>Market Pulse</span>
+            <i data-lucide="x"></i>
+          </button>
+          <button class="tab add-tab" type="button" aria-label="New tab">
+            <i data-lucide="plus"></i>
+          </button>
+        </nav>
+      </header>
+
+      <section class="address-row" aria-label="Browser toolbar">
+        <div class="nav-buttons">
+          <button type="button" aria-label="Back"><i data-lucide="arrow-left"></i></button>
+          <button type="button" aria-label="Forward"><i data-lucide="arrow-right"></i></button>
+          <button type="button" aria-label="Reload" id="reloadChart"><i data-lucide="rotate-cw"></i></button>
+        </div>
+        <div class="address-bar">
+          <i data-lucide="lock"></i>
+          <span>https://sean.markets/chart/SEANUSD</span>
+        </div>
+        <div class="browser-actions">
+          <button type="button" aria-label="Bookmark"><i data-lucide="star"></i></button>
+          <button type="button" aria-label="Extensions"><i data-lucide="puzzle"></i></button>
+          <button type="button" aria-label="Menu"><i data-lucide="menu"></i></button>
+        </div>
+      </section>
+
+      <main class="terminal">
+        <aside class="left-rail" aria-label="Drawing tools">
+          <button class="tool active" type="button" data-tool="cursor" title="Cursor"><i data-lucide="mouse-pointer-2"></i></button>
+          <button class="tool" type="button" data-tool="trend" title="Trend line"><i data-lucide="trending-up"></i></button>
+          <button class="tool" type="button" data-tool="fib" title="Fibonacci"><i data-lucide="waves"></i></button>
+          <button class="tool" type="button" data-tool="brush" title="Brush"><i data-lucide="paintbrush"></i></button>
+          <button class="tool" type="button" data-tool="text" title="Text"><i data-lucide="type"></i></button>
+          <button class="tool" type="button" data-tool="measure" title="Measure"><i data-lucide="ruler"></i></button>
+          <button class="tool" type="button" data-tool="magnet" title="Magnet"><i data-lucide="magnet"></i></button>
+          <button class="tool" type="button" data-tool="lock" title="Lock drawings"><i data-lucide="lock-keyhole"></i></button>
+        </aside>
+
+        <section class="watchlist" aria-label="Watchlist">
+          <div class="panel-header">
+            <div>
+              <span class="eyebrow">Seanlist</span>
+              <h2>Markets</h2>
+            </div>
+            <button type="button" aria-label="Add symbol"><i data-lucide="plus"></i></button>
+          </div>
+          <div class="search-box">
+            <i data-lucide="search"></i>
+            <input id="symbolSearch" type="search" placeholder="Search" autocomplete="off" />
+          </div>
+          <div class="market-list" id="marketList"></div>
+        </section>
+
+        <section class="workspace" aria-label="Chart workspace">
+          <div class="chart-toolbar">
+            <div class="symbol-block">
+              <button type="button" class="symbol-pill" id="activeSymbol">SEANUSD</button>
+              <span id="activeName">Sean Composite</span>
+            </div>
+            <div class="segmented" id="timeframes" aria-label="Timeframe">
+              <button class="selected" type="button" data-frame="1D">1D</button>
+              <button type="button" data-frame="1W">1W</button>
+              <button type="button" data-frame="1M">1M</button>
+              <button type="button" data-frame="3M">3M</button>
+              <button type="button" data-frame="1Y">1Y</button>
+            </div>
+            <div class="toolbar-spacer"></div>
+            <button type="button" class="icon-button" id="themeToggle" aria-label="Toggle theme"><i data-lucide="sun"></i></button>
+            <button type="button" class="icon-button" aria-label="Indicators"><i data-lucide="sliders-horizontal"></i></button>
+            <button type="button" class="primary-button"><i data-lucide="save"></i><span>Save</span></button>
+          </div>
+
+          <div class="chart-card">
+            <div class="chart-meta">
+              <div>
+                <h1 id="chartTitle">SEANUSD</h1>
+                <p id="chartSubtitle">Sean Composite Index · Sean Exchange</p>
+              </div>
+              <div class="quote-tile">
+                <span id="lastPrice">142.38</span>
+                <strong id="lastChange">+2.84%</strong>
+              </div>
+            </div>
+            <canvas id="priceChart" aria-label="Candlestick chart"></canvas>
+            <div class="range-slider">
+              <span>09:30</span>
+              <input id="volatility" type="range" min="1" max="9" value="5" />
+              <span>16:00</span>
+            </div>
+          </div>
+
+          <section class="bottom-dock" aria-label="Trading panel">
+            <div class="dock-tabs">
+              <button class="active" type="button">Positions</button>
+              <button type="button">Orders</button>
+              <button type="button">Alerts</button>
+              <button type="button">Notes</button>
+            </div>
+            <div class="positions-grid">
+              <span>Symbol</span><span>Side</span><span>Qty</span><span>Avg</span><span>P/L</span>
+              <strong>SEANUSD</strong><strong>Long</strong><strong>40</strong><strong>137.12</strong><strong class="positive">+$210.40</strong>
+              <strong>PIXEL</strong><strong>Short</strong><strong>12</strong><strong>88.18</strong><strong class="negative">-$31.08</strong>
+            </div>
+          </section>
+        </section>
+
+        <aside class="details" aria-label="Symbol details">
+          <div class="panel-header">
+            <div>
+              <span class="eyebrow">Details</span>
+              <h2 id="detailsSymbol">SEANUSD</h2>
+            </div>
+            <button type="button" aria-label="Create alert"><i data-lucide="bell"></i></button>
+          </div>
+
+          <div class="mini-chart">
+            <canvas id="sparkChart" aria-label="Sparkline chart"></canvas>
+          </div>
+
+          <div class="stats">
+            <div><span>Open</span><strong id="statOpen">138.44</strong></div>
+            <div><span>High</span><strong id="statHigh">145.10</strong></div>
+            <div><span>Low</span><strong id="statLow">136.92</strong></div>
+            <div><span>Volume</span><strong id="statVolume">18.2M</strong></div>
+          </div>
+
+          <form class="order-ticket">
+            <div class="ticket-side">
+              <button class="buy active" type="button">Buy</button>
+              <button class="sell" type="button">Sell</button>
+            </div>
+            <label>
+              <span>Order type</span>
+              <select>
+                <option>Limit</option>
+                <option>Market</option>
+                <option>Stop</option>
+              </select>
+            </label>
+            <label>
+              <span>Quantity</span>
+              <input type="number" value="10" min="1" />
+            </label>
+            <label>
+              <span>Limit price</span>
+              <input id="limitPrice" type="number" value="142.38" step="0.01" />
+            </label>
+            <button class="submit-order" type="button">Place Sean Order</button>
+          </form>
+
+          <section class="news">
+            <h3>Pulse</h3>
+            <article>
+              <span>14:08</span>
+              <p>Momentum buyers step in as breadth improves across software.</p>
+            </article>
+            <article>
+              <span>13:41</span>
+              <p>Sean terminal flags a volatility squeeze into the close.</p>
+            </article>
+          </section>
+        </aside>
+      </main>
+    </div>
+  </body>
+</html>
