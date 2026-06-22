@@ -19,7 +19,7 @@
         <nav class="tabs" aria-label="Browser tabs">
           <button class="tab active" type="button">
             <i data-lucide="activity"></i>
-            <span>Sean Chart</span>
+            <span>Chart</span>
             <i data-lucide="x"></i>
           </button>
           <button class="tab" type="button">
@@ -41,7 +41,7 @@
         </div>
         <div class="address-bar">
           <i data-lucide="lock"></i>
-          <span>https://sean.markets/chart/SEANUSD</span>
+          <span id="addressText">https://app.sean.dev/chart/AAPL</span>
         </div>
         <div class="browser-actions">
           <button type="button" aria-label="Bookmark"><i data-lucide="star"></i></button>
@@ -65,7 +65,7 @@
         <section class="watchlist" aria-label="Watchlist">
           <div class="panel-header">
             <div>
-              <span class="eyebrow">Seanlist</span>
+              <span class="eyebrow">Watchlist</span>
               <h2>Markets</h2>
             </div>
             <button type="button" aria-label="Add symbol"><i data-lucide="plus"></i></button>
@@ -80,8 +80,13 @@
         <section class="workspace" aria-label="Chart workspace">
           <div class="chart-toolbar">
             <div class="symbol-block">
-              <button type="button" class="symbol-pill" id="activeSymbol">SEANUSD</button>
-              <span id="activeName">Sean Composite</span>
+              <button type="button" class="symbol-pill" id="activeSymbol">AAPL</button>
+              <span id="activeName">Apple Inc.</span>
+            </div>
+            <div class="segmented" id="chartTypes" aria-label="Chart type">
+              <button class="selected" type="button" data-chart="candles">Candles</button>
+              <button type="button" data-chart="line">Line</button>
+              <button type="button" data-chart="area">Area</button>
             </div>
             <div class="segmented" id="timeframes" aria-label="Timeframe">
               <button class="selected" type="button" data-frame="1D">1D</button>
@@ -92,20 +97,26 @@
             </div>
             <div class="toolbar-spacer"></div>
             <button type="button" class="icon-button" id="themeToggle" aria-label="Toggle theme"><i data-lucide="sun"></i></button>
-            <button type="button" class="icon-button" aria-label="Indicators"><i data-lucide="sliders-horizontal"></i></button>
+            <button type="button" class="icon-button active" id="indicatorToggle" aria-label="Toggle indicators"><i data-lucide="sliders-horizontal"></i></button>
+            <button type="button" class="icon-button" id="alertButton" aria-label="Create alert"><i data-lucide="bell-plus"></i></button>
             <button type="button" class="primary-button"><i data-lucide="save"></i><span>Save</span></button>
           </div>
 
           <div class="chart-card">
             <div class="chart-meta">
               <div>
-                <h1 id="chartTitle">SEANUSD</h1>
-                <p id="chartSubtitle">Sean Composite Index · Sean Exchange</p>
+                <h1 id="chartTitle">AAPL</h1>
+                <p id="chartSubtitle">Apple Inc. · NASDAQ</p>
               </div>
               <div class="quote-tile">
-                <span id="lastPrice">142.38</span>
-                <strong id="lastChange">+2.84%</strong>
+                <span id="lastPrice">201.22</span>
+                <strong id="lastChange">+0.74%</strong>
               </div>
+            </div>
+            <div class="indicator-strip" id="indicatorStrip">
+              <span>MA 20</span>
+              <span>EMA 50</span>
+              <span>VWAP</span>
             </div>
             <canvas id="priceChart" aria-label="Candlestick chart"></canvas>
             <div class="range-slider">
@@ -117,15 +128,15 @@
 
           <section class="bottom-dock" aria-label="Trading panel">
             <div class="dock-tabs">
-              <button class="active" type="button">Positions</button>
-              <button type="button">Orders</button>
-              <button type="button">Alerts</button>
-              <button type="button">Notes</button>
+              <button class="active" type="button">Stock Screener</button>
+              <button type="button">Pine Editor</button>
+              <button type="button">Strategy Tester</button>
+              <button type="button">Trading Panel</button>
             </div>
             <div class="positions-grid">
-              <span>Symbol</span><span>Side</span><span>Qty</span><span>Avg</span><span>P/L</span>
-              <strong>SEANUSD</strong><strong>Long</strong><strong>40</strong><strong>137.12</strong><strong class="positive">+$210.40</strong>
-              <strong>PIXEL</strong><strong>Short</strong><strong>12</strong><strong>88.18</strong><strong class="negative">-$31.08</strong>
+              <span>Symbol</span><span>Last</span><span>Change</span><span>Volume</span><span>Signal</span>
+              <strong>AAPL</strong><strong>201.22</strong><strong class="positive">+0.74%</strong><strong>48.1M</strong><strong>MA cross</strong>
+              <strong>NVDA</strong><strong>168.44</strong><strong class="negative">-1.21%</strong><strong>62.8M</strong><strong>Pullback</strong>
             </div>
           </section>
         </section>
@@ -134,7 +145,7 @@
           <div class="panel-header">
             <div>
               <span class="eyebrow">Details</span>
-              <h2 id="detailsSymbol">SEANUSD</h2>
+              <h2 id="detailsSymbol">AAPL</h2>
             </div>
             <button type="button" aria-label="Create alert"><i data-lucide="bell"></i></button>
           </div>
@@ -144,10 +155,10 @@
           </div>
 
           <div class="stats">
-            <div><span>Open</span><strong id="statOpen">138.44</strong></div>
-            <div><span>High</span><strong id="statHigh">145.10</strong></div>
-            <div><span>Low</span><strong id="statLow">136.92</strong></div>
-            <div><span>Volume</span><strong id="statVolume">18.2M</strong></div>
+            <div><span>Open</span><strong id="statOpen">199.84</strong></div>
+            <div><span>High</span><strong id="statHigh">203.10</strong></div>
+            <div><span>Low</span><strong id="statLow">198.92</strong></div>
+            <div><span>Volume</span><strong id="statVolume">48.1M</strong></div>
           </div>
 
           <form class="order-ticket">
@@ -169,20 +180,20 @@
             </label>
             <label>
               <span>Limit price</span>
-              <input id="limitPrice" type="number" value="142.38" step="0.01" />
+              <input id="limitPrice" type="number" value="201.22" step="0.01" />
             </label>
-            <button class="submit-order" type="button">Place Sean Order</button>
+            <button class="submit-order" type="button">Place Paper Order</button>
           </form>
 
           <section class="news">
-            <h3>Pulse</h3>
+            <h3>Market News</h3>
             <article>
               <span>14:08</span>
-              <p>Momentum buyers step in as breadth improves across software.</p>
+              <p>Large-cap technology names hold gains as volume builds into the close.</p>
             </article>
             <article>
               <span>13:41</span>
-              <p>Sean terminal flags a volatility squeeze into the close.</p>
+              <p>Traders watch semiconductor breadth after a mixed morning session.</p>
             </article>
           </section>
         </aside>
