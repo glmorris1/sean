@@ -1,17 +1,19 @@
 const markets = [
-  { symbol: "SEANUSD", name: "Sean Composite", price: 142.38, change: 2.84, volume: "18.2M" },
-  { symbol: "AAPL", name: "Apple Inc.", price: 201.22, change: 0.74, volume: "48.1M" },
-  { symbol: "NVDA", name: "NVIDIA Corp.", price: 168.44, change: -1.21, volume: "62.8M" },
-  { symbol: "BTCUSD", name: "Bitcoin", price: 64642.12, change: 1.48, volume: "31.4B" },
-  { symbol: "ETHUSD", name: "Ethereum", price: 3184.8, change: -0.36, volume: "14.7B" },
-  { symbol: "PIXEL", name: "Pixelware Labs", price: 87.94, change: -2.18, volume: "4.9M" },
-  { symbol: "SPY", name: "S&P 500 ETF", price: 612.22, change: 0.28, volume: "71.5M" },
-  { symbol: "GLD", name: "Gold Trust", price: 231.42, change: 0.42, volume: "9.8M" }
+  { symbol: "AAPL", name: "Apple Inc.", exchange: "NASDAQ", price: 201.22, change: 0.74, volume: "48.1M" },
+  { symbol: "MSFT", name: "Microsoft Corp.", exchange: "NASDAQ", price: 478.88, change: 0.51, volume: "22.7M" },
+  { symbol: "TSLA", name: "Tesla Inc.", exchange: "NASDAQ", price: 322.16, change: 1.88, volume: "94.3M" },
+  { symbol: "NVDA", name: "NVIDIA Corp.", exchange: "NASDAQ", price: 168.44, change: -1.21, volume: "62.8M" },
+  { symbol: "META", name: "Meta Platforms", exchange: "NASDAQ", price: 711.44, change: -0.42, volume: "16.9M" },
+  { symbol: "BTCUSD", name: "Bitcoin", exchange: "CRYPTO", price: 64642.12, change: 1.48, volume: "31.4B" },
+  { symbol: "ETHUSD", name: "Ethereum", exchange: "CRYPTO", price: 3184.8, change: -0.36, volume: "14.7B" },
+  { symbol: "SPY", name: "S&P 500 ETF", exchange: "NYSE Arca", price: 612.22, change: 0.28, volume: "71.5M" }
 ];
 
 const state = {
   active: markets[0],
   frame: "1D",
+  chartType: "candles",
+  indicators: true,
   volatility: 5,
   candles: []
 };
@@ -29,6 +31,8 @@ const els = {
   lastPrice: document.querySelector("#lastPrice"),
   lastChange: document.querySelector("#lastChange"),
   detailsSymbol: document.querySelector("#detailsSymbol"),
+  addressText: document.querySelector("#addressText"),
+  indicatorStrip: document.querySelector("#indicatorStrip"),
   statOpen: document.querySelector("#statOpen"),
   statHigh: document.querySelector("#statHigh"),
   statLow: document.querySelector("#statLow"),
@@ -76,6 +80,33 @@ function fitCanvas(canvas) {
   return { ctx, width: rect.width, height: rect.height };
 }
 
+function movingAverage(values, period) {
+  return values.map((_, index) => {
+    if (index < period - 1) return null;
+    const slice = values.slice(index - period + 1, index + 1);
+    return slice.reduce((sum, value) => sum + value, 0) / period;
+  });
+}
+
+function drawPath(ctx, values, scaleX, scaleY, color, lineWidth = 2) {
+  ctx.strokeStyle = color;
+  ctx.lineWidth = lineWidth;
+  ctx.beginPath();
+  let started = false;
+  values.forEach((value, index) => {
+    if (value == null) return;
+    const x = scaleX(index);
+    const y = scaleY(value);
+    if (!started) {
+      ctx.moveTo(x, y);
+      started = true;
+    } else {
+      ctx.lineTo(x, y);
+    }
+  });
+  ctx.stroke();
+}
+
 function cssVar(name) {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim() ||
     getComputedStyle(els.shell).getPropertyValue(name).trim();
@@ -91,10 +122,13 @@ function drawChart() {
   const scale = (value) => pad.top + ((max - value) / (max - min)) * (height - pad.top - pad.bottom);
   const plotWidth = width - pad.left - pad.right;
   const slot = plotWidth / candles.length;
+  const closes = candles.map((candle) => candle.close);
   const green = cssVar("--green");
   const red = cssVar("--red");
   const muted = cssVar("--muted");
   const line = cssVar("--line");
+  const cyan = cssVar("--cyan");
+  const gold = cssVar("--gold");
 
   ctx.clearRect(0, 0, width, height);
   ctx.font = "12px Inter, system-ui, sans-serif";
@@ -111,27 +145,55 @@ function drawChart() {
     ctx.fillText(money(label), width - pad.right + 26, y + 4);
   }
 
-  candles.forEach((candle, index) => {
-    const x = pad.left + index * slot + slot / 2;
-    const openY = scale(candle.open);
-    const closeY = scale(candle.close);
-    const highY = scale(candle.high);
-    const lowY = scale(candle.low);
-    const up = candle.close >= candle.open;
-    ctx.strokeStyle = up ? green : red;
-    ctx.fillStyle = up ? green : red;
-    ctx.beginPath();
-    ctx.moveTo(x, highY);
-    ctx.lineTo(x, lowY);
-    ctx.stroke();
-    const bodyTop = Math.min(openY, closeY);
-    const bodyHeight = Math.max(2, Math.abs(closeY - openY));
-    ctx.fillRect(x - Math.max(3, slot * 0.28), bodyTop, Math.max(4, slot * 0.56), bodyHeight);
-  });
+  const xFor = (index) => pad.left + index * slot + slot / 2;
+
+  if (state.chartType === "candles") {
+    candles.forEach((candle, index) => {
+      const x = xFor(index);
+      const openY = scale(candle.open);
+      const closeY = scale(candle.close);
+      const highY = scale(candle.high);
+      const lowY = scale(candle.low);
+      const up = candle.close >= candle.open;
+      ctx.strokeStyle = up ? green : red;
+      ctx.fillStyle = up ? green : red;
+      ctx.beginPath();
+      ctx.moveTo(x, highY);
+      ctx.lineTo(x, lowY);
+      ctx.stroke();
+      const bodyTop = Math.min(openY, closeY);
+      const bodyHeight = Math.max(2, Math.abs(closeY - openY));
+      ctx.fillRect(x - Math.max(3, slot * 0.28), bodyTop, Math.max(4, slot * 0.56), bodyHeight);
+    });
+  } else {
+    if (state.chartType === "area") {
+      const gradient = ctx.createLinearGradient(0, pad.top, 0, height - pad.bottom);
+      gradient.addColorStop(0, "rgba(84, 182, 255, 0.28)");
+      gradient.addColorStop(1, "rgba(84, 182, 255, 0)");
+      ctx.beginPath();
+      closes.forEach((close, index) => {
+        const x = xFor(index);
+        const y = scale(close);
+        if (index === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.lineTo(xFor(candles.length - 1), height - pad.bottom);
+      ctx.lineTo(xFor(0), height - pad.bottom);
+      ctx.closePath();
+      ctx.fillStyle = gradient;
+      ctx.fill();
+    }
+    drawPath(ctx, closes, xFor, scale, cyan, 2.4);
+  }
+
+  if (state.indicators) {
+    drawPath(ctx, movingAverage(closes, 20), xFor, scale, gold, 1.8);
+    drawPath(ctx, movingAverage(closes, 50), xFor, scale, cyan, 1.4);
+  }
 
   const last = candles.at(-1).close;
   const lastY = scale(last);
-  ctx.strokeStyle = cssVar("--cyan");
+  ctx.strokeStyle = cyan;
   ctx.setLineDash([5, 5]);
   ctx.beginPath();
   ctx.moveTo(pad.left, lastY);
@@ -199,7 +261,8 @@ function updateQuote() {
   els.activeSymbol.textContent = state.active.symbol;
   els.activeName.textContent = state.active.name;
   els.chartTitle.textContent = state.active.symbol;
-  els.chartSubtitle.textContent = `${state.active.name} · Sean Exchange`;
+  els.chartSubtitle.textContent = `${state.active.name} · ${state.active.exchange || "NASDAQ"}`;
+  els.addressText.textContent = `https://app.sean.dev/chart/${state.active.symbol}`;
   els.lastPrice.textContent = money(last);
   els.lastChange.textContent = `${change >= 0 ? "+" : ""}${change.toFixed(2)}%`;
   els.lastChange.className = changeClass;
@@ -209,6 +272,7 @@ function updateQuote() {
   els.statLow.textContent = money(low);
   els.statVolume.textContent = state.active.volume;
   els.limitPrice.value = last.toFixed(2);
+  els.indicatorStrip.hidden = !state.indicators;
   renderMarkets(els.search.value);
   drawChart();
   drawSpark();
@@ -232,6 +296,14 @@ function bindEvents() {
     updateQuote();
   });
 
+  document.querySelector("#chartTypes").addEventListener("click", (event) => {
+    const button = event.target.closest("button[data-chart]");
+    if (!button) return;
+    state.chartType = button.dataset.chart;
+    document.querySelectorAll("#chartTypes button").forEach((item) => item.classList.toggle("selected", item === button));
+    drawChart();
+  });
+
   document.querySelectorAll(".tool").forEach((tool) => {
     tool.addEventListener("click", () => {
       document.querySelectorAll(".tool").forEach((item) => item.classList.toggle("active", item === tool));
@@ -243,6 +315,23 @@ function bindEvents() {
     els.shell.dataset.theme = next;
     drawChart();
     drawSpark();
+  });
+
+  document.querySelector("#indicatorToggle").addEventListener("click", () => {
+    state.indicators = !state.indicators;
+    document.querySelector("#indicatorToggle").classList.toggle("active", state.indicators);
+    updateQuote();
+  });
+
+  document.querySelector("#alertButton").addEventListener("click", () => {
+    const last = state.candles.at(-1)?.close || state.active.price;
+    const target = last * 1.01;
+    document.querySelector(".news").insertAdjacentHTML("afterbegin", `
+      <article>
+        <span>Alert</span>
+        <p>${state.active.symbol} crossing ${money(target)} added to the alerts panel.</p>
+      </article>
+    `);
   });
 
   document.querySelector("#reloadChart").addEventListener("click", updateQuote);
