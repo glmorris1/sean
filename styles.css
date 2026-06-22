@@ -172,7 +172,7 @@ button {
 .terminal {
   min-height: 0;
   display: grid;
-  grid-template-columns: 48px 280px minmax(520px, 1fr) 320px;
+  grid-template-columns: 44px 240px minmax(620px, 1fr) 280px;
   background: var(--bg);
 }
 
@@ -311,24 +311,26 @@ h2 {
 .chart-toolbar {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 0 14px;
+  gap: 8px;
+  padding: 0 10px;
   background: var(--panel);
   border-bottom: 1px solid var(--line);
 }
 
 .symbol-block {
-  min-width: 170px;
+  min-width: 112px;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .symbol-block span {
-  max-width: 92px;
+  max-width: 46px;
   color: var(--muted);
   font-size: 13px;
   line-height: 1.15;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .symbol-pill,
@@ -353,11 +355,15 @@ h2 {
 }
 
 .segmented button {
-  min-width: 42px;
-  padding: 0 8px;
+  min-width: 35px;
+  padding: 0 7px;
   background: transparent;
   border-radius: 4px;
   color: var(--muted);
+}
+
+#chartTypes button {
+  min-width: 48px;
 }
 
 .segmented button.selected {
@@ -373,6 +379,18 @@ h2 {
 .primary-button {
   background: var(--cyan);
   color: #07111c;
+  width: 32px;
+  justify-content: center;
+  padding: 0;
+}
+
+.primary-button span {
+  display: none;
+}
+
+.icon-button.active {
+  color: var(--cyan);
+  background: color-mix(in srgb, var(--cyan) 14%, transparent);
 }
 
 .chart-card {
@@ -385,6 +403,29 @@ h2 {
     linear-gradient(0deg, color-mix(in srgb, var(--line) 36%, transparent) 1px, transparent 1px),
     var(--bg);
   background-size: 80px 100%, 100% 56px, auto;
+}
+
+.indicator-strip {
+  position: absolute;
+  z-index: 2;
+  top: 76px;
+  left: 18px;
+  display: flex;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.indicator-strip[hidden] {
+  display: none;
+}
+
+.indicator-strip span:first-child {
+  color: var(--gold);
+}
+
+.indicator-strip span:nth-child(2) {
+  color: var(--cyan);
 }
 
 .chart-meta {
@@ -628,6 +669,6 @@ svg {
   }
 
   .terminal {
-    grid-template-columns: 48px 240px minmax(460px, 1fr) 280px;
+    grid-template-columns: 44px 220px minmax(560px, 1fr) 260px;
   }
 }
