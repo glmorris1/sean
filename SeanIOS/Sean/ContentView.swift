@@ -414,9 +414,9 @@ struct ContentView: View {
         case .oneDay:
             return .seconds(60)
         case .oneHour, .fourHours:
-            return .seconds(30)
-        default:
             return .seconds(15)
+        default:
+            return .seconds(3)
         }
     }
 
