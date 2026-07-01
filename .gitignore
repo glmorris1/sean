@@ -1,0 +1,7 @@
+SeanIOS/DerivedData/
+sean-backend/.env
+sean-backend/data/
+sean-backend/node_modules/
+.DS_Store
+xcuserdata/
+*.xcuserstate
