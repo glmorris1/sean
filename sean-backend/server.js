@@ -76,7 +76,7 @@ const emptyDb = {
   snapshotsByUserID: {}
 };
 
-const defaultTimeframes = ["1m", "2m", "3m", "5m", "10m", "15m", "30m", "1h", "4h", "1d"];
+const defaultTimeframes = ["15s", "1m", "2m", "3m", "5m", "10m", "15m", "30m", "1h", "4h", "1d"];
 const symbolCatalog = [
   {
     symbol: "XAUUSD",
@@ -85,8 +85,8 @@ const symbolCatalog = [
     baseAsset: "XAU",
     quoteAsset: "USD",
     exchange: "OTC",
-    provider: "GhostTrade Market Data",
-    providerSymbol: "XAU/USD",
+    provider: "OANDA",
+    providerSymbol: "XAU_USD",
     yahooFallbackSymbol: "GC=F",
     tickSize: 0.01,
     pipSize: 0.01,
@@ -100,8 +100,8 @@ const symbolCatalog = [
     baseAsset: "XAG",
     quoteAsset: "USD",
     exchange: "OTC",
-    provider: "GhostTrade Market Data",
-    providerSymbol: "XAG/USD",
+    provider: "OANDA",
+    providerSymbol: "XAG_USD",
     yahooFallbackSymbol: "SI=F",
     tickSize: 0.001,
     pipSize: 0.001,
@@ -115,8 +115,8 @@ const symbolCatalog = [
     baseAsset: "EUR",
     quoteAsset: "USD",
     exchange: "OTC",
-    provider: "GhostTrade Market Data",
-    providerSymbol: "EUR/USD",
+    provider: "OANDA",
+    providerSymbol: "EUR_USD",
     yahooFallbackSymbol: "EURUSD=X",
     tickSize: 0.00001,
     pipSize: 0.0001,
@@ -130,8 +130,8 @@ const symbolCatalog = [
     baseAsset: "GBP",
     quoteAsset: "USD",
     exchange: "OTC",
-    provider: "GhostTrade Market Data",
-    providerSymbol: "GBP/USD",
+    provider: "OANDA",
+    providerSymbol: "GBP_USD",
     yahooFallbackSymbol: "GBPUSD=X",
     tickSize: 0.00001,
     pipSize: 0.0001,
@@ -145,8 +145,8 @@ const symbolCatalog = [
     baseAsset: "USD",
     quoteAsset: "JPY",
     exchange: "OTC",
-    provider: "GhostTrade Market Data",
-    providerSymbol: "USD/JPY",
+    provider: "OANDA",
+    providerSymbol: "USD_JPY",
     yahooFallbackSymbol: "JPY=X",
     tickSize: 0.001,
     pipSize: 0.01,
@@ -486,6 +486,121 @@ function normalizeCandles(rows, timeframe) {
   return Array.from(buckets.values()).sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 }
 
+function oandaGranularity(timeframe) {
+  switch (String(timeframe || "1d").toLowerCase()) {
+    case "15s": return "S15";
+    case "1m": return "M1";
+    case "2m": return "M2";
+    case "3m": return "M3";
+    case "5m": return "M5";
+    case "10m": return "M10";
+    case "15m": return "M15";
+    case "30m": return "M30";
+    case "1h": return "H1";
+    case "4h": return "H4";
+    case "1 day":
+    case "1d":
+    default:
+      return "D";
+  }
+}
+
+function shouldUseOanda(catalogSymbol) {
+  return ["spot_metal", "forex"].includes(catalogSymbol.assetType) &&
+    catalogSymbol.provider === "OANDA" &&
+    Boolean(catalogSymbol.providerSymbol);
+}
+
+function oandaStartDate(timeframe) {
+  const now = Date.now();
+  const day = 24 * 60 * 60 * 1000;
+  switch (String(timeframe || "1d").toLowerCase()) {
+    case "15s":
+    case "1m":
+    case "2m":
+    case "3m":
+    case "5m":
+    case "10m":
+      return new Date(now - 30 * day);
+    case "15m":
+    case "30m":
+      return new Date(now - 180 * day);
+    case "1h":
+    case "4h":
+      return new Date(now - 5 * 365 * day);
+    case "1 day":
+    case "1d":
+    default:
+      return new Date("2005-01-01T00:00:00Z");
+  }
+}
+
+async function fetchOandaCandles(catalogSymbol, timeframe) {
+  const token = process.env.OANDA_API_TOKEN;
+  if (!token || !shouldUseOanda(catalogSymbol)) return null;
+
+  const baseURL = String(process.env.OANDA_API_URL || "https://api-fxpractice.oanda.com").replace(/\/+$/, "");
+  const start = Number.isFinite(Date.parse(process.env.OANDA_HISTORY_START || ""))
+    ? new Date(process.env.OANDA_HISTORY_START)
+    : oandaStartDate(timeframe);
+  let cursor = new Date();
+  const rows = [];
+  const seen = new Set();
+  const maxCandles = Math.min(Number(process.env.OANDA_MAX_CANDLES || 50000), 500000);
+  let requests = 0;
+
+  while (rows.length < maxCandles && cursor > start && requests < 25) {
+    requests += 1;
+    const url = new URL(`${baseURL}/v3/instruments/${encodeURIComponent(catalogSymbol.providerSymbol)}/candles`);
+    url.searchParams.set("price", "M");
+    url.searchParams.set("granularity", oandaGranularity(timeframe));
+    url.searchParams.set("count", String(Math.min(5000, maxCandles - rows.length)));
+    url.searchParams.set("to", cursor.toISOString());
+    url.searchParams.set("includeFirst", "true");
+
+    const response = await fetch(url, {
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${token}`
+      }
+    });
+    if (!response.ok) {
+      throw new Error(`OANDA returned ${response.status}`);
+    }
+
+    const payload = await response.json();
+    const candles = Array.isArray(payload?.candles) ? payload.candles : [];
+    if (!candles.length) break;
+
+    for (const candle of candles) {
+      const mid = candle.mid;
+      if (!mid || !candle.time || seen.has(candle.time)) continue;
+      seen.add(candle.time);
+      rows.push({
+        symbol: catalogSymbol.symbol,
+        exchange: catalogSymbol.exchange,
+        timeframe,
+        timestamp: new Date(candle.time).toISOString(),
+        open: Number(mid.o),
+        high: Number(mid.h),
+        low: Number(mid.l),
+        close: Number(mid.c),
+        volume: Number(candle.volume || 0)
+      });
+    }
+
+    const firstTime = new Date(candles[0].time);
+    if (!Number.isFinite(firstTime.getTime()) || firstTime >= cursor) break;
+    cursor = new Date(firstTime.getTime() - 1);
+
+    if (firstTime <= start) break;
+  }
+
+  const normalized = normalizeCandles(rows, timeframe)
+    .filter((row) => new Date(row.timestamp) >= start);
+  return normalized.length ? normalized : null;
+}
+
 async function fetchYahooCandles(catalogSymbol, timeframe) {
   const providerSymbol = catalogSymbol.yahooFallbackSymbol || catalogSymbol.providerSymbol || catalogSymbol.symbol;
   const encodedSymbol = encodeURIComponent(providerSymbol);
@@ -566,6 +681,13 @@ async function fetchTwelveDataCandles(catalogSymbol, timeframe) {
 }
 
 async function fetchMarketCandles(catalogSymbol, timeframe) {
+  try {
+    const oandaRows = await fetchOandaCandles(catalogSymbol, timeframe);
+    if (oandaRows?.length) return oandaRows;
+  } catch (error) {
+    console.warn(`[market-data] OANDA failed for ${catalogSymbol.symbol}: ${error.message}`);
+  }
+
   const twelveDataRows = await fetchTwelveDataCandles(catalogSymbol, timeframe);
   if (twelveDataRows?.length) return twelveDataRows;
   return fetchYahooCandles(catalogSymbol, timeframe);

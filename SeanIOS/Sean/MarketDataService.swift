@@ -123,22 +123,22 @@ struct InstrumentCatalog {
     private static let defaultTimeframes = ["1m", "2m", "3m", "5m", "10m", "15m", "30m", "1h", "4h", "1 day"]
 
     private static let instruments: [InstrumentMetadata] = [
-        InstrumentMetadata(symbol: "XAUUSD", displayName: "Gold / U.S. Dollar", assetType: "spot_metal", baseAsset: "XAU", quoteAsset: "USD", exchange: "OTC", provider: "Yahoo Finance", providerSymbol: "XAUUSD=X", tickSize: 0.01, pipSize: 0.01, contractSize: nil, availableTimeframes: defaultTimeframes),
-        InstrumentMetadata(symbol: "XAUEUR", displayName: "Gold / Euro", assetType: "spot_metal", baseAsset: "XAU", quoteAsset: "EUR", exchange: "OTC", provider: "Yahoo Finance", providerSymbol: "XAUEUR=X", tickSize: 0.01, pipSize: 0.01, contractSize: nil, availableTimeframes: defaultTimeframes),
-        InstrumentMetadata(symbol: "XAUGBP", displayName: "Gold / British Pound", assetType: "spot_metal", baseAsset: "XAU", quoteAsset: "GBP", exchange: "OTC", provider: "Yahoo Finance", providerSymbol: "XAUGBP=X", tickSize: 0.01, pipSize: 0.01, contractSize: nil, availableTimeframes: defaultTimeframes),
-        InstrumentMetadata(symbol: "XAGUSD", displayName: "Silver / U.S. Dollar", assetType: "spot_metal", baseAsset: "XAG", quoteAsset: "USD", exchange: "OTC", provider: "Yahoo Finance", providerSymbol: "XAGUSD=X", tickSize: 0.001, pipSize: 0.001, contractSize: nil, availableTimeframes: defaultTimeframes),
-        InstrumentMetadata(symbol: "XAGEUR", displayName: "Silver / Euro", assetType: "spot_metal", baseAsset: "XAG", quoteAsset: "EUR", exchange: "OTC", provider: "Yahoo Finance", providerSymbol: "XAGEUR=X", tickSize: 0.001, pipSize: 0.001, contractSize: nil, availableTimeframes: defaultTimeframes),
-        InstrumentMetadata(symbol: "EURUSD", displayName: "Euro / U.S. Dollar", assetType: "forex", baseAsset: "EUR", quoteAsset: "USD", exchange: "OTC", provider: "Yahoo Finance", providerSymbol: "EURUSD=X", tickSize: 0.00001, pipSize: 0.0001, contractSize: nil, availableTimeframes: defaultTimeframes),
-        InstrumentMetadata(symbol: "GBPUSD", displayName: "British Pound / U.S. Dollar", assetType: "forex", baseAsset: "GBP", quoteAsset: "USD", exchange: "OTC", provider: "Yahoo Finance", providerSymbol: "GBPUSD=X", tickSize: 0.00001, pipSize: 0.0001, contractSize: nil, availableTimeframes: defaultTimeframes),
-        InstrumentMetadata(symbol: "USDJPY", displayName: "U.S. Dollar / Japanese Yen", assetType: "forex", baseAsset: "USD", quoteAsset: "JPY", exchange: "OTC", provider: "Yahoo Finance", providerSymbol: "JPY=X", tickSize: 0.001, pipSize: 0.01, contractSize: nil, availableTimeframes: defaultTimeframes),
-        InstrumentMetadata(symbol: "EURJPY", displayName: "Euro / Japanese Yen", assetType: "forex", baseAsset: "EUR", quoteAsset: "JPY", exchange: "OTC", provider: "Yahoo Finance", providerSymbol: "EURJPY=X", tickSize: 0.001, pipSize: 0.01, contractSize: nil, availableTimeframes: defaultTimeframes),
-        InstrumentMetadata(symbol: "EURGBP", displayName: "Euro / British Pound", assetType: "forex", baseAsset: "EUR", quoteAsset: "GBP", exchange: "OTC", provider: "Yahoo Finance", providerSymbol: "EURGBP=X", tickSize: 0.00001, pipSize: 0.0001, contractSize: nil, availableTimeframes: defaultTimeframes),
-        InstrumentMetadata(symbol: "EURAUD", displayName: "Euro / Australian Dollar", assetType: "forex", baseAsset: "EUR", quoteAsset: "AUD", exchange: "OTC", provider: "Yahoo Finance", providerSymbol: "EURAUD=X", tickSize: 0.00001, pipSize: 0.0001, contractSize: nil, availableTimeframes: defaultTimeframes),
-        InstrumentMetadata(symbol: "AUDUSD", displayName: "Australian Dollar / U.S. Dollar", assetType: "forex", baseAsset: "AUD", quoteAsset: "USD", exchange: "OTC", provider: "Yahoo Finance", providerSymbol: "AUDUSD=X", tickSize: 0.00001, pipSize: 0.0001, contractSize: nil, availableTimeframes: defaultTimeframes),
-        InstrumentMetadata(symbol: "NZDUSD", displayName: "New Zealand Dollar / U.S. Dollar", assetType: "forex", baseAsset: "NZD", quoteAsset: "USD", exchange: "OTC", provider: "Yahoo Finance", providerSymbol: "NZDUSD=X", tickSize: 0.00001, pipSize: 0.0001, contractSize: nil, availableTimeframes: defaultTimeframes),
-        InstrumentMetadata(symbol: "USDCAD", displayName: "U.S. Dollar / Canadian Dollar", assetType: "forex", baseAsset: "USD", quoteAsset: "CAD", exchange: "OTC", provider: "Yahoo Finance", providerSymbol: "CAD=X", tickSize: 0.00001, pipSize: 0.0001, contractSize: nil, availableTimeframes: defaultTimeframes),
-        InstrumentMetadata(symbol: "USDCHF", displayName: "U.S. Dollar / Swiss Franc", assetType: "forex", baseAsset: "USD", quoteAsset: "CHF", exchange: "OTC", provider: "Yahoo Finance", providerSymbol: "CHF=X", tickSize: 0.00001, pipSize: 0.0001, contractSize: nil, availableTimeframes: defaultTimeframes),
-        InstrumentMetadata(symbol: "GBPJPY", displayName: "British Pound / Japanese Yen", assetType: "forex", baseAsset: "GBP", quoteAsset: "JPY", exchange: "OTC", provider: "Yahoo Finance", providerSymbol: "GBPJPY=X", tickSize: 0.001, pipSize: 0.01, contractSize: nil, availableTimeframes: defaultTimeframes),
+        InstrumentMetadata(symbol: "XAUUSD", displayName: "Gold / U.S. Dollar", assetType: "spot_metal", baseAsset: "XAU", quoteAsset: "USD", exchange: "OTC", provider: "OANDA", providerSymbol: "XAU_USD", tickSize: 0.01, pipSize: 0.01, contractSize: nil, availableTimeframes: defaultTimeframes),
+        InstrumentMetadata(symbol: "XAUEUR", displayName: "Gold / Euro", assetType: "spot_metal", baseAsset: "XAU", quoteAsset: "EUR", exchange: "OTC", provider: "OANDA", providerSymbol: "XAU_EUR", tickSize: 0.01, pipSize: 0.01, contractSize: nil, availableTimeframes: defaultTimeframes),
+        InstrumentMetadata(symbol: "XAUGBP", displayName: "Gold / British Pound", assetType: "spot_metal", baseAsset: "XAU", quoteAsset: "GBP", exchange: "OTC", provider: "OANDA", providerSymbol: "XAU_GBP", tickSize: 0.01, pipSize: 0.01, contractSize: nil, availableTimeframes: defaultTimeframes),
+        InstrumentMetadata(symbol: "XAGUSD", displayName: "Silver / U.S. Dollar", assetType: "spot_metal", baseAsset: "XAG", quoteAsset: "USD", exchange: "OTC", provider: "OANDA", providerSymbol: "XAG_USD", tickSize: 0.001, pipSize: 0.001, contractSize: nil, availableTimeframes: defaultTimeframes),
+        InstrumentMetadata(symbol: "XAGEUR", displayName: "Silver / Euro", assetType: "spot_metal", baseAsset: "XAG", quoteAsset: "EUR", exchange: "OTC", provider: "OANDA", providerSymbol: "XAG_EUR", tickSize: 0.001, pipSize: 0.001, contractSize: nil, availableTimeframes: defaultTimeframes),
+        InstrumentMetadata(symbol: "EURUSD", displayName: "Euro / U.S. Dollar", assetType: "forex", baseAsset: "EUR", quoteAsset: "USD", exchange: "OTC", provider: "OANDA", providerSymbol: "EUR_USD", tickSize: 0.00001, pipSize: 0.0001, contractSize: nil, availableTimeframes: defaultTimeframes),
+        InstrumentMetadata(symbol: "GBPUSD", displayName: "British Pound / U.S. Dollar", assetType: "forex", baseAsset: "GBP", quoteAsset: "USD", exchange: "OTC", provider: "OANDA", providerSymbol: "GBP_USD", tickSize: 0.00001, pipSize: 0.0001, contractSize: nil, availableTimeframes: defaultTimeframes),
+        InstrumentMetadata(symbol: "USDJPY", displayName: "U.S. Dollar / Japanese Yen", assetType: "forex", baseAsset: "USD", quoteAsset: "JPY", exchange: "OTC", provider: "OANDA", providerSymbol: "USD_JPY", tickSize: 0.001, pipSize: 0.01, contractSize: nil, availableTimeframes: defaultTimeframes),
+        InstrumentMetadata(symbol: "EURJPY", displayName: "Euro / Japanese Yen", assetType: "forex", baseAsset: "EUR", quoteAsset: "JPY", exchange: "OTC", provider: "OANDA", providerSymbol: "EUR_JPY", tickSize: 0.001, pipSize: 0.01, contractSize: nil, availableTimeframes: defaultTimeframes),
+        InstrumentMetadata(symbol: "EURGBP", displayName: "Euro / British Pound", assetType: "forex", baseAsset: "EUR", quoteAsset: "GBP", exchange: "OTC", provider: "OANDA", providerSymbol: "EUR_GBP", tickSize: 0.00001, pipSize: 0.0001, contractSize: nil, availableTimeframes: defaultTimeframes),
+        InstrumentMetadata(symbol: "EURAUD", displayName: "Euro / Australian Dollar", assetType: "forex", baseAsset: "EUR", quoteAsset: "AUD", exchange: "OTC", provider: "OANDA", providerSymbol: "EUR_AUD", tickSize: 0.00001, pipSize: 0.0001, contractSize: nil, availableTimeframes: defaultTimeframes),
+        InstrumentMetadata(symbol: "AUDUSD", displayName: "Australian Dollar / U.S. Dollar", assetType: "forex", baseAsset: "AUD", quoteAsset: "USD", exchange: "OTC", provider: "OANDA", providerSymbol: "AUD_USD", tickSize: 0.00001, pipSize: 0.0001, contractSize: nil, availableTimeframes: defaultTimeframes),
+        InstrumentMetadata(symbol: "NZDUSD", displayName: "New Zealand Dollar / U.S. Dollar", assetType: "forex", baseAsset: "NZD", quoteAsset: "USD", exchange: "OTC", provider: "OANDA", providerSymbol: "NZD_USD", tickSize: 0.00001, pipSize: 0.0001, contractSize: nil, availableTimeframes: defaultTimeframes),
+        InstrumentMetadata(symbol: "USDCAD", displayName: "U.S. Dollar / Canadian Dollar", assetType: "forex", baseAsset: "USD", quoteAsset: "CAD", exchange: "OTC", provider: "OANDA", providerSymbol: "USD_CAD", tickSize: 0.00001, pipSize: 0.0001, contractSize: nil, availableTimeframes: defaultTimeframes),
+        InstrumentMetadata(symbol: "USDCHF", displayName: "U.S. Dollar / Swiss Franc", assetType: "forex", baseAsset: "USD", quoteAsset: "CHF", exchange: "OTC", provider: "OANDA", providerSymbol: "USD_CHF", tickSize: 0.00001, pipSize: 0.0001, contractSize: nil, availableTimeframes: defaultTimeframes),
+        InstrumentMetadata(symbol: "GBPJPY", displayName: "British Pound / Japanese Yen", assetType: "forex", baseAsset: "GBP", quoteAsset: "JPY", exchange: "OTC", provider: "OANDA", providerSymbol: "GBP_JPY", tickSize: 0.001, pipSize: 0.01, contractSize: nil, availableTimeframes: defaultTimeframes),
         InstrumentMetadata(symbol: "BTCUSD", displayName: "Bitcoin / U.S. Dollar", assetType: "crypto", baseAsset: "BTC", quoteAsset: "USD", exchange: "Crypto", provider: "Yahoo Finance", providerSymbol: "BTC-USD", tickSize: 0.01, pipSize: nil, contractSize: nil, availableTimeframes: defaultTimeframes),
         InstrumentMetadata(symbol: "ETHUSD", displayName: "Ethereum / U.S. Dollar", assetType: "crypto", baseAsset: "ETH", quoteAsset: "USD", exchange: "Crypto", provider: "Yahoo Finance", providerSymbol: "ETH-USD", tickSize: 0.01, pipSize: nil, contractSize: nil, availableTimeframes: defaultTimeframes)
     ]
@@ -698,14 +698,22 @@ struct MarketDataService {
     }
 
     private static func yahooProviderSymbols(for instrument: InstrumentMetadata) -> [String] {
-        var symbols = [instrument.providerSymbol]
+        var symbols: [String]
         switch instrument.symbol.uppercased() {
         case "XAUUSD":
-            symbols.append("GC=F")
+            symbols = ["XAUUSD=X", "GC=F"]
         case "XAGUSD":
-            symbols.append("SI=F")
+            symbols = ["XAGUSD=X", "SI=F"]
+        case "USDJPY":
+            symbols = ["JPY=X"]
+        case "USDCAD":
+            symbols = ["CAD=X"]
+        case "USDCHF":
+            symbols = ["CHF=X"]
+        case "EURUSD", "GBPUSD", "EURJPY", "EURGBP", "EURAUD", "AUDUSD", "NZDUSD", "GBPJPY":
+            symbols = ["\(instrument.symbol.uppercased())=X"]
         default:
-            break
+            symbols = [instrument.providerSymbol]
         }
         var seen = Set<String>()
         return symbols.filter { seen.insert($0).inserted }
