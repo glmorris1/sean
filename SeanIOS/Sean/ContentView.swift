@@ -91,6 +91,9 @@ struct ContentView: View {
         .task(id: replayPlaybackID) {
             await runReplayPlayback()
         }
+        .task(id: marketRefreshID) {
+            await runMarketDataRefreshLoop()
+        }
         .onChange(of: selectedTab) { oldValue, newValue in
             if newValue == 4 {
                 hideMainTabBarForBacktest = true
@@ -400,6 +403,32 @@ struct ContentView: View {
 
     private var replayPlaybackID: String {
         "\(isReplayPlaying)-\(replaySpeed.rawValue)-\(replayUpdateInterval.rawValue)-\(store.candles.count)"
+    }
+
+    private var marketRefreshID: String {
+        "\(store.selected.ticker)-\(store.selectedInterval.rawValue)"
+    }
+
+    private var marketRefreshInterval: Duration {
+        switch store.selectedInterval {
+        case .oneDay:
+            return .seconds(60)
+        case .oneHour, .fourHours:
+            return .seconds(30)
+        default:
+            return .seconds(15)
+        }
+    }
+
+    @MainActor
+    private func runMarketDataRefreshLoop() async {
+        while !Task.isCancelled {
+            try? await Task.sleep(for: marketRefreshInterval)
+            guard !Task.isCancelled else { break }
+            await store.refreshSelectedSymbol()
+            clampReplayToLoadedCandles()
+            processPaperTradingCandles()
+        }
     }
 
     private func setSystemTabBarHidden(_ hidden: Bool) {
@@ -2156,9 +2185,18 @@ private struct TradingChartCanvas: View {
 
             spookySignature
         }
-        .onChange(of: candles.count) { _, newCount in
+        .onChange(of: candles.count) { oldCount, newCount in
             guard newCount > 0 else { return }
-            resetViewport(candleCount: newCount)
+            let wasFollowingLeadingEdge = endIndex == nil || clampedEndIndex >= max(oldCount - 1, 0)
+            if oldCount <= 0 {
+                resetViewport(candleCount: newCount)
+            } else if wasFollowingLeadingEdge, !isReplayMode {
+                endIndex = newCount - 1
+                baseEndIndex = nil
+            } else {
+                endIndex = min(max(endIndex ?? clampedEndIndex, minimumEndIndex), maximumEndIndex)
+                baseEndIndex = nil
+            }
             updateLastVisibleCandle()
         }
         .onChange(of: interval) { _, _ in

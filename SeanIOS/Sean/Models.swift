@@ -422,6 +422,41 @@ final class MarketStore {
         isLoading = false
     }
 
+    func refreshSelectedSymbol() async {
+        do {
+            let history = try await MarketDataService.fetchCandles(for: selected, interval: selectedInterval)
+            mergeRefreshedCandles(history)
+            updateQuoteFromCandles()
+            errorMessage = nil
+        } catch {
+            guard candles.isEmpty else { return }
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func mergeRefreshedCandles(_ refreshed: [Candle]) {
+        guard !refreshed.isEmpty else { return }
+        var rowsByDate = Dictionary(uniqueKeysWithValues: candles.map { ($0.date, $0) })
+        for candle in refreshed {
+            rowsByDate[candle.date] = candle
+        }
+
+        candles = rowsByDate.values
+            .sorted { $0.date < $1.date }
+            .enumerated()
+            .map { index, candle in
+                Candle(
+                    index: index,
+                    date: candle.date,
+                    open: candle.open,
+                    high: candle.high,
+                    low: candle.low,
+                    close: candle.close,
+                    volume: candle.volume
+                )
+            }
+    }
+
     private func updateQuoteFromCandles() {
         guard let last = candles.last else { return }
         let previousClose = candles.dropLast().last?.close ?? last.open
