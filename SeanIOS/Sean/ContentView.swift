@@ -1037,7 +1037,7 @@ private struct MobileChartView: View {
         let recentHigh = recentCandles.map(\.high).max() ?? candle.close
         let recentLow = recentCandles.map(\.low).min() ?? candle.close
         let range = max(recentHigh - recentLow, 0.01)
-        let offset = max(candle.close * 0.0025, range * 0.06, 0.01)
+        let offset = max(candle.close * 0.0005, range * 0.012, 0.01)
         let stopLoss = direction == .long ? candle.close - offset : candle.close + offset
         let takeProfit = direction == .long ? candle.close + offset : candle.close - offset
         _ = paperTrading.createChartSetupOrder(
