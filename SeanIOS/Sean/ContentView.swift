@@ -40,7 +40,7 @@ struct ContentView: View {
                         .tabItem { Label("Explore", systemImage: "safari.fill") }
                         .tag(2)
 
-                    BacktestView(store: store, paperTrading: paperTrading)
+                    PaperTradeManagementView(store: store, paperTrading: paperTrading)
                         .tabItem {
                             Image("PaperTradeTabIcon")
                             Text("PaperTrade")
@@ -5070,6 +5070,285 @@ private struct BacktestView: View {
             }
             Slider(value: value, in: range, step: 1)
         }
+    }
+}
+
+private enum PaperTradeManagementSection: String, CaseIterable, Identifiable {
+    case positions = "Positions"
+    case orders = "Orders"
+    case history = "History"
+    case performance = "Stats"
+
+    var id: String { rawValue }
+}
+
+private struct PaperTradeManagementView: View {
+    @Bindable var store: MarketStore
+    @Bindable var paperTrading: PaperTradingService
+    @State private var selectedSection: PaperTradeManagementSection = .positions
+
+    private var latestCandle: Candle? {
+        store.candles.last
+    }
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: 14) {
+                    header
+                    accountSummary
+                    sectionPicker
+                    sectionContent
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 14)
+            }
+            .background(Color(.systemGroupedBackground))
+            .navigationTitle("PaperTrade")
+            .toolbar {
+                Button("Reset") {
+                    paperTrading.resetAccount()
+                }
+                .foregroundStyle(.red)
+            }
+            .onAppear {
+                paperTrading.configureInstrument(store.selected)
+                paperTrading.processVisibleCandles(store.candles, symbol: store.selected.ticker)
+            }
+            .onChange(of: store.selected.ticker) { _, _ in
+                paperTrading.configureInstrument(store.selected)
+            }
+        }
+    }
+
+    private var header: some View {
+        HStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Simulated Trading")
+                    .font(.title2.bold())
+                Text("No real money. No real orders.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            VStack(alignment: .trailing, spacing: 3) {
+                Text(store.selected.ticker)
+                    .font(.headline.monospaced())
+                Text(latestCandle?.close.priceText ?? store.selected.last.priceText)
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding()
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 18))
+    }
+
+    private var accountSummary: some View {
+        VStack(spacing: 10) {
+            Grid(horizontalSpacing: 10, verticalSpacing: 10) {
+                GridRow {
+                    paperMetric("Equity", paperTrading.account.equity.moneyText, paperTrading.account.equity >= paperTrading.account.startingBalance ? .green : .red)
+                    paperMetric("Cash", paperTrading.account.cashBalance.moneyText, .primary)
+                }
+                GridRow {
+                    paperMetric("Buying Power", paperTrading.account.buyingPower.moneyText, .cyan)
+                    paperMetric("Open P/L", paperTrading.account.unrealizedPL.signedMoneyText, paperTrading.account.unrealizedPL >= 0 ? .green : .red)
+                }
+                GridRow {
+                    paperMetric("Realized P/L", paperTrading.account.realizedPL.signedMoneyText, paperTrading.account.realizedPL >= 0 ? .green : .red)
+                    paperMetric("Open Risk", openRisk.signedMoneyText, openRisk <= 0 ? .secondary : .orange)
+                }
+            }
+        }
+    }
+
+    private var sectionPicker: some View {
+        Picker("PaperTrade section", selection: $selectedSection) {
+            ForEach(PaperTradeManagementSection.allCases) { section in
+                Text(section.rawValue).tag(section)
+            }
+        }
+        .pickerStyle(.segmented)
+    }
+
+    @ViewBuilder
+    private var sectionContent: some View {
+        switch selectedSection {
+        case .positions:
+            positionsSection
+        case .orders:
+            ordersSection
+        case .history:
+            PaperTradeHistoryView(trades: paperTrading.account.closedTrades)
+                .paperSectionCard()
+        case .performance:
+            PaperStatsView(stats: paperTrading.stats)
+                .paperSectionCard()
+        }
+    }
+
+    private var positionsSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            sectionTitle("Open Positions", count: paperTrading.account.openPositions.count)
+            if paperTrading.account.openPositions.isEmpty {
+                emptyState("No open paper positions.")
+            } else {
+                ForEach(paperTrading.account.openPositions) { position in
+                    positionRow(position)
+                }
+            }
+        }
+        .paperSectionCard()
+    }
+
+    private var ordersSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            sectionTitle("Pending Orders", count: paperTrading.account.pendingOrders.count)
+            if paperTrading.account.pendingOrders.isEmpty {
+                emptyState("No pending paper orders.")
+            } else {
+                ForEach(paperTrading.account.pendingOrders) { order in
+                    orderRow(order)
+                }
+            }
+        }
+        .paperSectionCard()
+    }
+
+    private func positionRow(_ position: SimulatedPosition) -> some View {
+        HStack(alignment: .center, spacing: 10) {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 6) {
+                    Text(position.symbol)
+                        .font(.subheadline.bold())
+                    Text(position.direction.shortLabel)
+                        .font(.caption.bold())
+                        .foregroundStyle(position.direction == .long ? .green : .red)
+                    Text(position.quantityText)
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                }
+                Text("Entry \(position.entryPrice.priceText) · Last \(position.lastPrice.priceText)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text("SL \(position.stopLoss?.priceText ?? "-") · TP \(position.takeProfit?.priceText ?? "-")")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            VStack(alignment: .trailing, spacing: 5) {
+                Text(position.unrealizedPL.signedMoneyText)
+                    .font(.subheadline.bold().monospacedDigit())
+                    .foregroundStyle(position.unrealizedPL >= 0 ? .green : .red)
+                Text(position.unrealizedPercent.percentText)
+                    .font(.caption2.monospacedDigit())
+                    .foregroundStyle(.secondary)
+                Button("Close") {
+                    paperTrading.closePosition(
+                        position,
+                        at: latestCandle?.close ?? position.lastPrice,
+                        time: latestCandle?.date ?? Date(),
+                        barIndex: latestCandle?.index ?? position.entryBarIndex
+                    )
+                }
+                .font(.caption.bold())
+            }
+        }
+        .padding(10)
+        .background(Color(.tertiarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 12))
+    }
+
+    private func orderRow(_ order: SimulatedOrder) -> some View {
+        HStack(alignment: .center, spacing: 10) {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 6) {
+                    Text(order.symbol)
+                        .font(.subheadline.bold())
+                    Text(order.direction.shortLabel)
+                        .font(.caption.bold())
+                        .foregroundStyle(order.direction == .long ? .green : .red)
+                    Text(order.type.rawValue)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Text("\(order.quantityText) @ \(order.entryPrice.priceText)")
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.secondary)
+                Text("SL \(order.stopLoss?.priceText ?? "-") · TP \(order.takeProfit?.priceText ?? "-")")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            VStack(alignment: .trailing, spacing: 5) {
+                Text(order.createdAt.crosshairIntradayLabel)
+                    .font(.caption2.monospacedDigit())
+                    .foregroundStyle(.secondary)
+                Button("Cancel") {
+                    paperTrading.cancelOrder(order)
+                }
+                .font(.caption.bold())
+                .foregroundStyle(.red)
+            }
+        }
+        .padding(10)
+        .background(Color(.tertiarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 12))
+    }
+
+    private func sectionTitle(_ title: String, count: Int) -> some View {
+        HStack {
+            Text(title)
+                .font(.headline)
+            Spacer()
+            Text("\(count)")
+                .font(.caption.bold().monospacedDigit())
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(Color(.tertiarySystemGroupedBackground), in: Capsule())
+        }
+    }
+
+    private func emptyState(_ text: String) -> some View {
+        Text(text)
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.vertical, 8)
+    }
+
+    private var openRisk: Double {
+        let positionRisk = paperTrading.account.openPositions.reduce(0.0) { total, position in
+            guard let stopLoss = position.stopLoss else { return total }
+            return total + abs(position.entryPrice - stopLoss) * position.quantity * (position.contractSize ?? 1)
+        }
+        let orderRisk = paperTrading.account.pendingOrders.reduce(0.0) { total, order in
+            guard let stopLoss = order.stopLoss else { return total }
+            return total + abs(order.entryPrice - stopLoss) * order.quantity * (order.contractSize ?? 1)
+        }
+        return positionRisk + orderRisk
+    }
+
+    private func paperMetric(_ title: String, _ value: String, _ color: Color) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(title)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Text(value)
+                .font(.headline.monospacedDigit())
+                .foregroundStyle(color)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(10)
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 12))
+    }
+}
+
+private extension View {
+    func paperSectionCard() -> some View {
+        padding()
+            .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 18))
     }
 }
 
