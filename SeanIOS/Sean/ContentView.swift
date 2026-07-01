@@ -2030,6 +2030,7 @@ private struct TradingChartCanvas: View {
     @State private var replayBarOffset: CGSize = .zero
     @State private var replayBarDragStart: CGSize?
     @State private var didDragReplayBar = false
+    @State private var liveMarkerClock = Date()
 
     var closes: [Double] {
         visibleCandles.map(\.close)
@@ -2240,6 +2241,13 @@ private struct TradingChartCanvas: View {
         }
         .onAppear {
             updateLastVisibleCandle()
+        }
+        .task {
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(1))
+                guard !Task.isCancelled else { break }
+                liveMarkerClock = Date()
+            }
         }
         }
     }
@@ -2482,7 +2490,8 @@ private struct TradingChartCanvas: View {
     }
 
     private func priceAxis(size: CGSize) -> some View {
-        ZStack(alignment: .topTrailing) {
+        let rect = plotRect(in: size)
+        return ZStack(alignment: .topTrailing) {
             ForEach(Array(priceTicks.enumerated()), id: \.offset) { _, price in
                 Text(axisPriceLabel(for: price))
                     .font(.system(size: 12, weight: .semibold).monospacedDigit())
@@ -2491,11 +2500,85 @@ private struct TradingChartCanvas: View {
                     .padding(.trailing, 4)
                     .position(
                         x: size.width - 28,
-                        y: yPosition(for: price, in: plotRect(in: size))
+                        y: yPosition(for: price, in: rect)
                     )
+            }
+
+            if let candle = livePriceMarkerCandle {
+                let rawY = yPosition(for: candle.close, in: rect)
+                let y = min(max(rawY, rect.minY + 18), rect.maxY - 18)
+                let markerColor = candle.close >= candle.open ? Color.green : Color.red
+
+                Path { path in
+                    path.move(to: CGPoint(x: rect.minX, y: y))
+                    path.addLine(to: CGPoint(x: min(size.width - 72, rect.maxX + 12), y: y))
+                }
+                .stroke(
+                    markerColor.opacity(0.88),
+                    style: StrokeStyle(lineWidth: 1.3, dash: [2.2, 4.0])
+                )
+
+                livePriceMarker(for: candle, color: markerColor)
+                    .position(x: size.width - 73, y: y)
             }
         }
         .allowsHitTesting(false)
+    }
+
+    private var livePriceMarkerCandle: Candle? {
+        if isReplayMode {
+            return visibleCandles.last ?? renderCandles.last
+        }
+        return renderCandles.last
+    }
+
+    private func livePriceMarker(for candle: Candle, color: Color) -> some View {
+        HStack(spacing: 0) {
+            Text(symbol.ticker)
+                .font(.system(size: 12, weight: .black).monospacedDigit())
+                .foregroundStyle(.black)
+                .lineLimit(1)
+                .minimumScaleFactor(0.62)
+                .padding(.horizontal, 6)
+                .frame(width: 58, height: 34)
+                .background(.white)
+
+            VStack(alignment: .leading, spacing: 0) {
+                Text(axisPriceLabel(for: candle.close))
+                    .font(.system(size: 12, weight: .black).monospacedDigit())
+                    .lineLimit(1)
+                Text(livePriceMarkerTimeLabel(for: candle))
+                    .font(.system(size: 11, weight: .semibold).monospacedDigit())
+                    .lineLimit(1)
+            }
+            .foregroundStyle(.black)
+            .padding(.horizontal, 6)
+            .frame(width: 66, height: 34, alignment: .leading)
+            .background(.white)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 3, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 3, style: .continuous)
+                .stroke(color.opacity(0.9), lineWidth: 1.4)
+        )
+        .shadow(color: .black.opacity(0.12), radius: 3, y: 1)
+    }
+
+    private func livePriceMarkerTimeLabel(for candle: Candle) -> String {
+        if isReplayMode {
+            return interval == .oneDay ? candle.date.shortChartLabel : candle.date.intradayChartLabel
+        }
+
+        guard interval != .oneDay else {
+            return candle.date.intradayChartLabel
+        }
+
+        let elapsed = liveMarkerClock.timeIntervalSince(candle.date)
+        let remaining = max(0, interval.seconds - elapsed.truncatingRemainder(dividingBy: interval.seconds))
+        let totalSeconds = Int(ceil(remaining))
+        let minutes = totalSeconds / 60
+        let seconds = totalSeconds % 60
+        return String(format: "%02d:%02d", minutes, seconds)
     }
 
     private var chartStatusOverlay: some View {
