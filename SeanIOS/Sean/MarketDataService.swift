@@ -365,7 +365,16 @@ struct MarketDataService {
             return traderMadeCandles
         }
 
-        return try await fetchYahooProviderCandles(providerSymbol: instrument.providerSymbol, interval: interval, includePrePost: true)
+        var lastError: Error?
+        for providerSymbol in yahooProviderSymbols(for: instrument) {
+            do {
+                return try await fetchYahooProviderCandles(providerSymbol: providerSymbol, interval: interval, includePrePost: true)
+            } catch {
+                lastError = error
+            }
+        }
+
+        throw lastError ?? MarketDataError.noRows
     }
 
     private static func fetchTwelveDataCandles(for instrument: InstrumentMetadata, interval: CandleInterval) async throws -> [Candle] {
@@ -686,6 +695,20 @@ struct MarketDataService {
         case .oneDay:
             return "40y"
         }
+    }
+
+    private static func yahooProviderSymbols(for instrument: InstrumentMetadata) -> [String] {
+        var symbols = [instrument.providerSymbol]
+        switch instrument.symbol.uppercased() {
+        case "XAUUSD":
+            symbols.append("GC=F")
+        case "XAGUSD":
+            symbols.append("SI=F")
+        default:
+            break
+        }
+        var seen = Set<String>()
+        return symbols.filter { seen.insert($0).inserted }
     }
 
     private static func candles(from rows: [ParsedCandle]) throws -> [Candle] {
