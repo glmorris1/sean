@@ -2418,7 +2418,7 @@ private struct TradingChartCanvas: View {
 
     private var candleBodyWidth: CGFloat {
         let slotWidth = 820 / CGFloat(max(clampedVisibleCount, 1))
-        return max(1.4, min(5.2, slotWidth * 0.42))
+        return max(1.4, min(6.4, slotWidth * 0.48))
     }
 
     private var wickWidth: CGFloat {

@@ -99,7 +99,7 @@ struct FuturesSymbol: Hashable, Codable {
     let availableTimeframes: [String]
 
     var dataAvailability: String {
-        isContinuous ? "Historical continuous candles" : "Historical candles when provider has contract"
+        isContinuous ? "Historical delayed candles via Yahoo Finance" : "Historical delayed candles when provider has contract"
     }
 
     var marketSymbol: MarketSymbol {
@@ -108,6 +108,8 @@ struct FuturesSymbol: Hashable, Codable {
             name: displayName,
             exchange: exchange,
             assetClass: assetType,
+            provider: "Yahoo Finance",
+            providerSymbol: dataProviderSymbol,
             contractType: contractType,
             dataAvailability: dataAvailability,
             futures: self,
@@ -295,7 +297,18 @@ final class MarketStore {
     private var userStorageKey = "sean.watchlist.guest"
 
     static let defaultSelectedSymbol: MarketSymbol = FuturesCatalog.symbol(for: "MES1!")?.marketSymbol ??
-        MarketSymbol(ticker: "MES1!", name: "Micro E-mini S&P 500 Futures Continuous Contract, Front Month", exchange: "CME", assetClass: "futures", last: 0, changePercent: 0, volume: "--")
+        MarketSymbol(
+            ticker: "MES1!",
+            name: "Micro E-mini S&P 500 Futures Continuous Contract, Front Month",
+            exchange: "CME",
+            assetClass: "futures",
+            provider: "Yahoo Finance",
+            providerSymbol: "MES=F",
+            dataAvailability: "Historical delayed candles via Yahoo Finance",
+            last: 0,
+            changePercent: 0,
+            volume: "--"
+        )
 
     static let defaultSymbols: [MarketSymbol] = [
         defaultSelectedSymbol,

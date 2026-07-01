@@ -160,7 +160,7 @@ const symbolCatalog = [
     baseAsset: "MES",
     quoteAsset: "USD",
     exchange: "CME",
-    provider: "GhostTrade Market Data",
+    provider: "Yahoo Finance",
     providerSymbol: "MES=F",
     yahooFallbackSymbol: "MES=F",
     tickSize: 0.25,
