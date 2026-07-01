@@ -4626,8 +4626,10 @@ private struct TradingChartCanvas: View {
         var cumulativePriceVolume = 0.0
         var cumulativeVarianceVolume = 0.0
         let calendar = Calendar.current
+        let visibleIndexes = Set(visibleCandles.map(\.index))
+        guard !visibleIndexes.isEmpty else { return [] }
 
-        for candle in visibleCandles {
+        for candle in vwapSourceCandles {
             let session = calendar.startOfDay(for: candle.date)
             if currentSession != session {
                 currentSession = session
@@ -4645,17 +4647,31 @@ private struct TradingChartCanvas: View {
             cumulativeVarianceVolume += pow(source - vwap, 2) * volume
             let deviation = sqrt(max(cumulativeVarianceVolume / cumulativeVolume, 0))
 
-            points.append(
-                VWAPPoint(
-                    index: candle.index,
-                    value: vwap,
-                    upperBand: vwap + deviation,
-                    lowerBand: vwap - deviation
+            if visibleIndexes.contains(candle.index) {
+                points.append(
+                    VWAPPoint(
+                        index: candle.index,
+                        value: vwap,
+                        upperBand: vwap + deviation,
+                        lowerBand: vwap - deviation
+                    )
                 )
-            )
+            }
         }
 
         return points
+    }
+
+    private var vwapSourceCandles: [Candle] {
+        guard !renderCandles.isEmpty else { return [] }
+        if isReplayMode,
+           replayCandleProgress < 1,
+           let lastIndex = renderCandles.indices.last {
+            var candles = renderCandles
+            candles[lastIndex] = formingCandle(from: candles[lastIndex], progress: replayCandleProgress)
+            return candles
+        }
+        return renderCandles
     }
 }
 
