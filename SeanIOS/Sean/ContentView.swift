@@ -851,6 +851,7 @@ private struct MobileChartView: View {
     @State private var isToolRailCollapsed = false
     @State private var didDragToolRail = false
     @State private var lastVisibleChartCandle: Candle?
+    @State private var paperOrderNotice: String?
 
     private var chartInk: Color {
         store.chartBackgroundTheme.isLight ? .black : .white
@@ -882,7 +883,8 @@ private struct MobileChartView: View {
                     isReplayPlaying: $isReplayPlaying,
                     replayCandleProgress: $replayCandleProgress,
                     lastVisibleCandle: $lastVisibleChartCandle,
-                    recordDrawingHistory: recordDrawingHistory
+                    recordDrawingHistory: recordDrawingHistory,
+                    notifyOrderPlacedOnCurrentPrice: showCurrentPriceOrderNotice
                 )
                 .ignoresSafeArea(edges: .top)
 
@@ -898,6 +900,21 @@ private struct MobileChartView: View {
                         .padding(.horizontal, 16)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .zIndex(4)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                }
+
+                if let paperOrderNotice {
+                    Text(paperOrderNotice)
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 9)
+                        .background(.black.opacity(0.88), in: Capsule())
+                        .overlay(Capsule().stroke(.white.opacity(0.18), lineWidth: 1))
+                        .padding(.top, activeTool == .paperTrade ? 166 : 112)
+                        .padding(.horizontal, 16)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .zIndex(5)
                         .transition(.move(edge: .top).combined(with: .opacity))
                 }
 
@@ -991,8 +1008,8 @@ private struct MobileChartView: View {
         .shadow(color: .black.opacity(0.22), radius: 10, y: 4)
     }
 
-    private var activeReplayCandle: Candle? {
-        if let lastVisibleChartCandle {
+    private var activePaperTradeCandle: Candle? {
+        if isReplayMode, let lastVisibleChartCandle {
             return lastVisibleChartCandle
         }
         if isReplayMode, let replayCurrentIndex, store.candles.indices.contains(replayCurrentIndex) {
@@ -1001,8 +1018,20 @@ private struct MobileChartView: View {
         return store.candles.last
     }
 
+    private var isViewingHistoricalPriceInNormalMode: Bool {
+        guard !isReplayMode,
+              let latest = store.candles.last,
+              let lastVisibleChartCandle else {
+            return false
+        }
+        return lastVisibleChartCandle.index < latest.index
+    }
+
     private func createPaperSetup(direction: TradeDirection) {
-        guard let candle = activeReplayCandle else { return }
+        guard let candle = activePaperTradeCandle else { return }
+        if isViewingHistoricalPriceInNormalMode {
+            showCurrentPriceOrderNotice()
+        }
         paperTrading.configureInstrument(store.selected)
         let recentCandles = store.candles.suffix(120)
         let recentHigh = recentCandles.map(\.high).max() ?? candle.close
@@ -1021,6 +1050,18 @@ private struct MobileChartView: View {
             isReplayTrade: isReplayMode
         )
         activeTool = nil
+    }
+
+    private func showCurrentPriceOrderNotice() {
+        withAnimation(.spring(response: 0.25, dampingFraction: 0.88)) {
+            paperOrderNotice = "Order placed on current price"
+        }
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(2))
+            withAnimation(.easeOut(duration: 0.2)) {
+                paperOrderNotice = nil
+            }
+        }
     }
 
 
@@ -2009,6 +2050,7 @@ private struct TradingChartCanvas: View {
     @Binding var replayCandleProgress: Double
     @Binding var lastVisibleCandle: Candle?
     let recordDrawingHistory: () -> Void
+    let notifyOrderPlacedOnCurrentPrice: () -> Void
 
     @State private var visibleCount = 120
     @State private var baseVisibleCount = 120
@@ -4516,6 +4558,14 @@ private struct TradingChartCanvas: View {
         let point = screenToPoint(location, in: rect)
         let nearest = nearestVisibleCandle(toX: location.x, in: size) ?? visibleCandles.last
         paperTrading.configureInstrument(symbol)
+        if !isReplayMode, let latest = renderCandles.last {
+            if let nearest, nearest.index < latest.index {
+                notifyOrderPlacedOnCurrentPrice()
+            }
+            _ = paperTrading.submitChartOrder(symbol: symbol.ticker, price: latest.close, candle: latest)
+            activeTool = nil
+            return
+        }
         _ = paperTrading.submitChartOrder(symbol: symbol.ticker, price: point.price, candle: nearest)
         activeTool = nil
     }
