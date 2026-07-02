@@ -21,14 +21,24 @@ enum SimulatedOrderType: String, CaseIterable, Codable, Identifiable {
     case market = "Market"
     case limit = "Limit"
     case stop = "Stop"
+    case stopLimit = "Stop Limit"
 
     var id: String { rawValue }
 }
 
 enum SimulatedOrderStatus: String, Codable {
     case pending
+    case partiallyFilled
     case filled
     case cancelled
+    case expired
+}
+
+enum SimulatedOrderTimeInForce: String, CaseIterable, Codable, Identifiable {
+    case day = "Day"
+    case gtc = "GTC"
+
+    var id: String { rawValue }
 }
 
 enum SimulatedExitReason: String, Codable {
@@ -44,6 +54,8 @@ struct SimulatedOrder: Identifiable, Codable, Equatable {
     var type: SimulatedOrderType
     var quantity: Double
     var entryPrice: Double
+    var limitPrice: Double?
+    var stopPrice: Double?
     var stopLoss: Double?
     var takeProfit: Double?
     var tickSize: Double?
@@ -53,8 +65,16 @@ struct SimulatedOrder: Identifiable, Codable, Equatable {
     var assetClass: String?
     var contractSize: Double?
     var isReplayTrade: Bool?
+    var timeInForce: SimulatedOrderTimeInForce?
+    var filledQuantity: Double?
+    var averageFillPrice: Double?
+    var commission: Double?
+    var slippage: Double?
+    var parentOrderID: UUID?
+    var ocoGroupID: UUID?
     var createdAt: Date
     var createdBarIndex: Int
+    var updatedAt: Date?
     var status: SimulatedOrderStatus
 
     init(
@@ -64,6 +84,8 @@ struct SimulatedOrder: Identifiable, Codable, Equatable {
         type: SimulatedOrderType,
         quantity: Double,
         entryPrice: Double,
+        limitPrice: Double? = nil,
+        stopPrice: Double? = nil,
         stopLoss: Double?,
         takeProfit: Double?,
         tickSize: Double? = nil,
@@ -73,8 +95,16 @@ struct SimulatedOrder: Identifiable, Codable, Equatable {
         assetClass: String? = nil,
         contractSize: Double? = nil,
         isReplayTrade: Bool? = nil,
+        timeInForce: SimulatedOrderTimeInForce? = .gtc,
+        filledQuantity: Double? = nil,
+        averageFillPrice: Double? = nil,
+        commission: Double? = nil,
+        slippage: Double? = nil,
+        parentOrderID: UUID? = nil,
+        ocoGroupID: UUID? = nil,
         createdAt: Date,
         createdBarIndex: Int,
+        updatedAt: Date? = nil,
         status: SimulatedOrderStatus = .pending
     ) {
         self.id = id
@@ -83,6 +113,8 @@ struct SimulatedOrder: Identifiable, Codable, Equatable {
         self.type = type
         self.quantity = quantity
         self.entryPrice = entryPrice
+        self.limitPrice = limitPrice
+        self.stopPrice = stopPrice
         self.stopLoss = stopLoss
         self.takeProfit = takeProfit
         self.tickSize = tickSize
@@ -92,8 +124,16 @@ struct SimulatedOrder: Identifiable, Codable, Equatable {
         self.assetClass = assetClass
         self.contractSize = contractSize
         self.isReplayTrade = isReplayTrade
+        self.timeInForce = timeInForce
+        self.filledQuantity = filledQuantity
+        self.averageFillPrice = averageFillPrice
+        self.commission = commission
+        self.slippage = slippage
+        self.parentOrderID = parentOrderID
+        self.ocoGroupID = ocoGroupID
         self.createdAt = createdAt
         self.createdBarIndex = createdBarIndex
+        self.updatedAt = updatedAt
         self.status = status
     }
 
@@ -102,6 +142,22 @@ struct SimulatedOrder: Identifiable, Codable, Equatable {
             return String(format: "%.0f", quantity)
         }
         return String(format: "%.2f", quantity)
+    }
+
+    var remainingQuantity: Double {
+        max(0, quantity - (filledQuantity ?? 0))
+    }
+
+    var effectiveTimeInForce: SimulatedOrderTimeInForce {
+        timeInForce ?? .gtc
+    }
+
+    var effectiveLimitPrice: Double {
+        limitPrice ?? entryPrice
+    }
+
+    var effectiveStopPrice: Double {
+        stopPrice ?? entryPrice
     }
 }
 
@@ -220,6 +276,8 @@ struct SimulatedTrade: Identifiable, Codable, Equatable {
     var isFutures: Bool?
     var assetClass: String?
     var contractSize: Double?
+    var commission: Double?
+    var slippage: Double?
     var profitLoss: Double
     var percentReturn: Double
     var exitReason: SimulatedExitReason
@@ -229,13 +287,89 @@ struct SimulatedTrade: Identifiable, Codable, Equatable {
     }
 }
 
+struct PaperAccountSnapshot: Identifiable, Codable, Equatable {
+    let id: UUID
+    var date: Date
+    var barIndex: Int
+    var cashBalance: Double
+    var equity: Double
+    var portfolioValue: Double
+    var realizedPL: Double
+    var unrealizedPL: Double
+
+    init(
+        id: UUID = UUID(),
+        date: Date,
+        barIndex: Int,
+        cashBalance: Double,
+        equity: Double,
+        portfolioValue: Double,
+        realizedPL: Double,
+        unrealizedPL: Double
+    ) {
+        self.id = id
+        self.date = date
+        self.barIndex = barIndex
+        self.cashBalance = cashBalance
+        self.equity = equity
+        self.portfolioValue = portfolioValue
+        self.realizedPL = realizedPL
+        self.unrealizedPL = unrealizedPL
+    }
+}
+
 struct PaperTradingAccount: Codable, Equatable {
     var startingBalance: Double = 100_000
     var cashBalance: Double = 100_000
     var openPositions: [SimulatedPosition] = []
     var pendingOrders: [SimulatedOrder] = []
+    var orderHistory: [SimulatedOrder] = []
     var closedTrades: [SimulatedTrade] = []
+    var equityHistory: [PaperAccountSnapshot] = []
     var lastProcessedBarIndexBySymbol: [String: Int] = [:]
+
+    init(
+        startingBalance: Double = 100_000,
+        cashBalance: Double = 100_000,
+        openPositions: [SimulatedPosition] = [],
+        pendingOrders: [SimulatedOrder] = [],
+        orderHistory: [SimulatedOrder] = [],
+        closedTrades: [SimulatedTrade] = [],
+        equityHistory: [PaperAccountSnapshot] = [],
+        lastProcessedBarIndexBySymbol: [String: Int] = [:]
+    ) {
+        self.startingBalance = startingBalance
+        self.cashBalance = cashBalance
+        self.openPositions = openPositions
+        self.pendingOrders = pendingOrders
+        self.orderHistory = orderHistory
+        self.closedTrades = closedTrades
+        self.equityHistory = equityHistory
+        self.lastProcessedBarIndexBySymbol = lastProcessedBarIndexBySymbol
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case startingBalance
+        case cashBalance
+        case openPositions
+        case pendingOrders
+        case orderHistory
+        case closedTrades
+        case equityHistory
+        case lastProcessedBarIndexBySymbol
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        startingBalance = try container.decodeIfPresent(Double.self, forKey: .startingBalance) ?? 100_000
+        cashBalance = try container.decodeIfPresent(Double.self, forKey: .cashBalance) ?? startingBalance
+        openPositions = try container.decodeIfPresent([SimulatedPosition].self, forKey: .openPositions) ?? []
+        pendingOrders = try container.decodeIfPresent([SimulatedOrder].self, forKey: .pendingOrders) ?? []
+        orderHistory = try container.decodeIfPresent([SimulatedOrder].self, forKey: .orderHistory) ?? pendingOrders
+        closedTrades = try container.decodeIfPresent([SimulatedTrade].self, forKey: .closedTrades) ?? []
+        equityHistory = try container.decodeIfPresent([PaperAccountSnapshot].self, forKey: .equityHistory) ?? []
+        lastProcessedBarIndexBySymbol = try container.decodeIfPresent([String: Int].self, forKey: .lastProcessedBarIndexBySymbol) ?? [:]
+    }
 
     var realizedPL: Double {
         closedTrades.reduce(0) { $0 + $1.profitLoss }
@@ -249,8 +383,16 @@ struct PaperTradingAccount: Codable, Equatable {
         cashBalance + unrealizedPL
     }
 
+    var portfolioValue: Double {
+        equity
+    }
+
     var buyingPower: Double {
         equity * 2
+    }
+
+    var closedPositions: [SimulatedTrade] {
+        closedTrades
     }
 }
 
@@ -306,12 +448,18 @@ final class PaperTradingService {
     var ticketOrderType: SimulatedOrderType = .market
     var ticketQuantity: Double = 100
     var ticketEntryPrice: Double = 0
+    var ticketLimitPrice: Double = 0
+    var ticketStopPrice: Double = 0
     var ticketStopLoss: Double = 0
     var ticketTakeProfit: Double = 0
     var ticketRiskAmount: Double = 1_000
     var ticketRiskPercent: Double = 1
+    var ticketTimeInForce: SimulatedOrderTimeInForce = .gtc
+    var commissionPerOrder: Double = 0
+    var slippageTicks: Double = 0
     var chartPlacementEnabled = false
     var ticketIsReplayTrade = false
+    var requestNotificationsEnabled = true
 
     init() {
         account = repository.loadAccount()
@@ -344,6 +492,7 @@ final class PaperTradingService {
         ticketDirection = direction
         ticketOrderType = .limit
         ticketEntryPrice = price
+        ticketLimitPrice = price
         let previousStop = ticketStopLoss > 0 ? ticketStopLoss : 0
         let previousTarget = ticketTakeProfit > 0 ? ticketTakeProfit : 0
         let previousReplayTrade = ticketIsReplayTrade
@@ -358,10 +507,25 @@ final class PaperTradingService {
         return submitOrder(symbol: symbol, latestCandle: candle)
     }
 
-    func updatePendingOrder(_ id: UUID, entryPrice: Double? = nil, stopLoss: Double? = nil, takeProfit: Double? = nil) {
+    func updatePendingOrder(
+        _ id: UUID,
+        entryPrice: Double? = nil,
+        limitPrice: Double? = nil,
+        stopPrice: Double? = nil,
+        stopLoss: Double? = nil,
+        takeProfit: Double? = nil,
+        quantity: Double? = nil,
+        timeInForce: SimulatedOrderTimeInForce? = nil
+    ) {
         guard let index = account.pendingOrders.firstIndex(where: { $0.id == id }) else { return }
         if let entryPrice {
             account.pendingOrders[index].entryPrice = max(0.0001, entryPrice)
+        }
+        if let limitPrice {
+            account.pendingOrders[index].limitPrice = max(0.0001, limitPrice)
+        }
+        if let stopPrice {
+            account.pendingOrders[index].stopPrice = max(0.0001, stopPrice)
         }
         if let stopLoss {
             account.pendingOrders[index].stopLoss = stopLoss > 0 ? stopLoss : nil
@@ -369,6 +533,14 @@ final class PaperTradingService {
         if let takeProfit {
             account.pendingOrders[index].takeProfit = takeProfit > 0 ? takeProfit : nil
         }
+        if let quantity {
+            account.pendingOrders[index].quantity = max(0.0001, quantity)
+        }
+        if let timeInForce {
+            account.pendingOrders[index].timeInForce = timeInForce
+        }
+        account.pendingOrders[index].updatedAt = Date()
+        upsertOrderHistory(account.pendingOrders[index])
     }
 
     func estimatedProfitLoss(for order: SimulatedOrder, markPrice: Double) -> Double {
@@ -459,6 +631,7 @@ final class PaperTradingService {
         for candle in freshCandles {
             process(candle, symbol: symbol, isReplayMode: isReplayMode)
             account.lastProcessedBarIndexBySymbol[processedKey] = candle.index
+            recordAccountSnapshot(on: candle)
         }
     }
 
@@ -473,13 +646,17 @@ final class PaperTradingService {
         let fallbackPrice = latestCandle?.close ?? ticketEntryPrice
         let entryPrice = ticketOrderType == .market ? fallbackPrice : max(ticketEntryPrice, 0)
         guard entryPrice > 0 else { return nil }
+        let resolvedLimitPrice = ticketLimitPrice > 0 ? ticketLimitPrice : entryPrice
+        let resolvedStopPrice = ticketStopPrice > 0 ? ticketStopPrice : entryPrice
 
-        let order = SimulatedOrder(
+        var order = SimulatedOrder(
             symbol: symbol,
             direction: ticketDirection,
             type: ticketOrderType,
             quantity: ticketQuantity,
             entryPrice: entryPrice,
+            limitPrice: ticketOrderType == .stopLimit ? resolvedLimitPrice : (ticketOrderType == .limit ? entryPrice : nil),
+            stopPrice: ticketOrderType == .stopLimit ? resolvedStopPrice : (ticketOrderType == .stop ? entryPrice : nil),
             stopLoss: ticketStopLoss > 0 ? ticketStopLoss : nil,
             takeProfit: ticketTakeProfit > 0 ? ticketTakeProfit : nil,
             tickSize: futuresBySymbol[symbol]?.tickSize,
@@ -489,14 +666,23 @@ final class PaperTradingService {
             assetClass: instrumentsBySymbol[symbol]?.assetType ?? (futuresBySymbol[symbol] != nil ? "futures" : "stocks"),
             contractSize: instrumentsBySymbol[symbol]?.contractSize,
             isReplayTrade: ticketIsReplayTrade,
+            timeInForce: ticketTimeInForce,
             createdAt: latestCandle?.date ?? Date(),
             createdBarIndex: latestCandle?.index ?? 0
         )
 
         if ticketOrderType == .market, let latestCandle {
-            fill(order, at: latestCandle.close, on: latestCandle)
+            order.status = .filled
+            order.filledQuantity = order.quantity
+            order.averageFillPrice = executionPrice(for: order, basePrice: latestCandle.close)
+            order.commission = commissionPerOrder
+            order.slippage = abs((order.averageFillPrice ?? latestCandle.close) - latestCandle.close)
+            upsertOrderHistory(order)
+            fill(order, at: order.averageFillPrice ?? latestCandle.close, on: latestCandle)
+            recordAccountSnapshot(on: latestCandle)
         } else {
             account.pendingOrders.append(order)
+            upsertOrderHistory(order)
         }
 
         return order
@@ -512,11 +698,98 @@ final class PaperTradingService {
     }
 
     func cancelOrder(_ order: SimulatedOrder) {
+        guard let pending = account.pendingOrders.first(where: { $0.id == order.id }) else { return }
         account.pendingOrders.removeAll { $0.id == order.id }
+        var cancelled = pending
+        cancelled.status = .cancelled
+        cancelled.updatedAt = Date()
+        upsertOrderHistory(cancelled)
     }
 
     func closePosition(_ position: SimulatedPosition, at price: Double, time: Date, barIndex: Int) {
-        close(position, at: price, time: time, barIndex: barIndex, reason: .manual)
+        closePosition(position, quantity: position.quantity, at: price, time: time, barIndex: barIndex, reason: .manual)
+    }
+
+    func closePosition(_ position: SimulatedPosition, quantity: Double, at price: Double, time: Date, barIndex: Int, reason: SimulatedExitReason = .manual) {
+        close(position, quantity: quantity, at: price, time: time, barIndex: barIndex, reason: reason)
+        recordAccountSnapshot(date: time, barIndex: barIndex)
+    }
+
+    func closePercentage(of position: SimulatedPosition, percent: Double, at price: Double, time: Date, barIndex: Int) {
+        let clampedPercent = min(max(percent, 0), 1)
+        closePosition(position, quantity: position.quantity * clampedPercent, at: price, time: time, barIndex: barIndex)
+    }
+
+    func closeAllPositions(symbol: String? = nil, at price: Double, time: Date, barIndex: Int) {
+        let positions = account.openPositions.filter { position in
+            symbol == nil || position.symbol == symbol
+        }
+        for position in positions {
+            close(position, quantity: position.quantity, at: price, time: time, barIndex: barIndex, reason: .manual)
+        }
+        recordAccountSnapshot(date: time, barIndex: barIndex)
+    }
+
+    func flattenAll(at price: Double, time: Date, barIndex: Int) {
+        closeAllPositions(at: price, time: time, barIndex: barIndex)
+        for order in account.pendingOrders {
+            var cancelled = order
+            cancelled.status = .cancelled
+            cancelled.updatedAt = time
+            upsertOrderHistory(cancelled)
+        }
+        account.pendingOrders.removeAll()
+    }
+
+    func modifyPosition(_ id: UUID, stopLoss: Double? = nil, takeProfit: Double? = nil) {
+        guard let index = account.openPositions.firstIndex(where: { $0.id == id }) else { return }
+        if let stopLoss {
+            account.openPositions[index].stopLoss = stopLoss > 0 ? stopLoss : nil
+        }
+        if let takeProfit {
+            account.openPositions[index].takeProfit = takeProfit > 0 ? takeProfit : nil
+        }
+    }
+
+    func scaleIntoPosition(_ position: SimulatedPosition, quantity: Double, at price: Double, time: Date, barIndex: Int) {
+        guard quantity > 0 else { return }
+        let order = orderForPositionFill(position, quantity: quantity, price: price, time: time, barIndex: barIndex)
+        fill(order, at: price, on: syntheticCandle(price: price, date: time, index: barIndex))
+        recordAccountSnapshot(date: time, barIndex: barIndex)
+    }
+
+    func scaleOutOfPosition(_ position: SimulatedPosition, quantity: Double, at price: Double, time: Date, barIndex: Int) {
+        closePosition(position, quantity: quantity, at: price, time: time, barIndex: barIndex)
+    }
+
+    func reversePosition(_ position: SimulatedPosition, at price: Double, time: Date, barIndex: Int) {
+        let reverseDirection: TradeDirection = position.direction == .long ? .short : .long
+        let order = SimulatedOrder(
+            symbol: position.symbol,
+            direction: reverseDirection,
+            type: .market,
+            quantity: position.quantity * 2,
+            entryPrice: price,
+            stopLoss: nil,
+            takeProfit: nil,
+            tickSize: position.tickSize,
+            tickValue: position.tickValue,
+            pointValue: position.pointValue,
+            isFutures: position.isFutures,
+            assetClass: position.assetClass,
+            contractSize: position.contractSize,
+            isReplayTrade: position.isReplayTrade,
+            timeInForce: .gtc,
+            filledQuantity: position.quantity * 2,
+            averageFillPrice: price,
+            commission: commissionPerOrder,
+            createdAt: time,
+            createdBarIndex: barIndex,
+            status: .filled
+        )
+        upsertOrderHistory(order)
+        fill(order, at: price, on: syntheticCandle(price: price, date: time, index: barIndex))
+        recordAccountSnapshot(date: time, barIndex: barIndex)
     }
 
     private func process(_ candle: Candle, symbol: String, isReplayMode: Bool) {
@@ -535,11 +808,18 @@ final class PaperTradingService {
     private func fillTriggeredOrders(on candle: Candle, symbol: String, isReplayMode: Bool) {
         let pending = account.pendingOrders.filter { $0.symbol == symbol && ($0.isReplayTrade == true) == isReplayMode }
         for order in pending {
+            if order.effectiveTimeInForce == .day && !Calendar.current.isDate(order.createdAt, inSameDayAs: candle.date) {
+                expireOrder(order, at: candle.date)
+                continue
+            }
+
             let shouldFill: Bool
+            let fillPrice: Double
             guard candle.index > order.createdBarIndex else { continue }
             switch order.type {
             case .market:
                 shouldFill = true
+                fillPrice = candle.open
             case .limit:
                 switch order.direction {
                 case .long:
@@ -547,6 +827,7 @@ final class PaperTradingService {
                 case .short:
                     shouldFill = candle.high >= order.entryPrice
                 }
+                fillPrice = order.entryPrice
             case .stop:
                 switch order.direction {
                 case .long:
@@ -554,14 +835,32 @@ final class PaperTradingService {
                 case .short:
                     shouldFill = candle.low <= order.entryPrice
                 }
+                fillPrice = executionPrice(for: order, basePrice: order.entryPrice)
+            case .stopLimit:
+                switch order.direction {
+                case .long:
+                    shouldFill = candle.high >= order.effectiveStopPrice && candle.low <= order.effectiveLimitPrice
+                case .short:
+                    shouldFill = candle.low <= order.effectiveStopPrice && candle.high >= order.effectiveLimitPrice
+                }
+                fillPrice = order.effectiveLimitPrice
             }
 
             if shouldFill {
-                fill(order, at: order.entryPrice, on: candle)
+                var filledOrder = order
+                filledOrder.status = .filled
+                filledOrder.filledQuantity = order.quantity
+                filledOrder.averageFillPrice = fillPrice
+                filledOrder.commission = commissionPerOrder
+                filledOrder.slippage = abs(fillPrice - order.entryPrice)
+                filledOrder.updatedAt = candle.date
+                fill(filledOrder, at: fillPrice, on: candle)
                 account.pendingOrders.removeAll { $0.id == order.id }
+                upsertOrderHistory(filledOrder)
+                cancelOCOSiblings(of: filledOrder, at: candle.date)
                 sendPaperNotification(
                     title: "Paper \(order.direction.shortLabel) Filled",
-                    body: "\(order.symbol) filled at \(order.entryPrice.priceText)"
+                    body: "\(order.symbol) filled at \(fillPrice.priceText)"
                 )
             }
         }
@@ -573,25 +872,62 @@ final class PaperTradingService {
             guard candle.index > position.entryBarIndex else { continue }
             if position.direction == .long {
                 if let stopLoss = position.stopLoss, candle.low <= stopLoss {
-                    close(position, at: stopLoss, time: candle.date, barIndex: candle.index, reason: .stopLoss)
+                    close(position, quantity: position.quantity, at: stopLoss, time: candle.date, barIndex: candle.index, reason: .stopLoss)
                 } else if let takeProfit = position.takeProfit, candle.high >= takeProfit {
-                    close(position, at: takeProfit, time: candle.date, barIndex: candle.index, reason: .takeProfit)
+                    close(position, quantity: position.quantity, at: takeProfit, time: candle.date, barIndex: candle.index, reason: .takeProfit)
                 }
             } else {
                 if let stopLoss = position.stopLoss, candle.high >= stopLoss {
-                    close(position, at: stopLoss, time: candle.date, barIndex: candle.index, reason: .stopLoss)
+                    close(position, quantity: position.quantity, at: stopLoss, time: candle.date, barIndex: candle.index, reason: .stopLoss)
                 } else if let takeProfit = position.takeProfit, candle.low <= takeProfit {
-                    close(position, at: takeProfit, time: candle.date, barIndex: candle.index, reason: .takeProfit)
+                    close(position, quantity: position.quantity, at: takeProfit, time: candle.date, barIndex: candle.index, reason: .takeProfit)
                 }
             }
         }
     }
 
     private func fill(_ order: SimulatedOrder, at price: Double, on candle: Candle) {
+        let remainingQuantity = closeOppositePositions(for: order, at: price, on: candle)
+        guard remainingQuantity > 0 else {
+            return
+        }
+
+        if let index = account.openPositions.firstIndex(where: {
+            $0.symbol == order.symbol &&
+            $0.direction == order.direction &&
+            ($0.isReplayTrade == true) == (order.isReplayTrade == true)
+        }) {
+            let oldPosition = account.openPositions[index]
+            let combinedQuantity = oldPosition.quantity + remainingQuantity
+            guard combinedQuantity > 0 else { return }
+            let averageEntry = ((oldPosition.entryPrice * oldPosition.quantity) + (price * remainingQuantity)) / combinedQuantity
+            account.openPositions[index].quantity = combinedQuantity
+            account.openPositions[index].entryPrice = averageEntry
+            account.openPositions[index].lastPrice = candle.close
+            if let stopLoss = order.stopLoss {
+                account.openPositions[index].stopLoss = stopLoss
+            }
+            if let takeProfit = order.takeProfit {
+                account.openPositions[index].takeProfit = takeProfit
+            }
+            account.cashBalance -= marginImpact(
+                symbol: oldPosition.symbol,
+                direction: oldPosition.direction,
+                quantity: remainingQuantity,
+                entryPrice: price,
+                tickSize: oldPosition.tickSize,
+                tickValue: oldPosition.tickValue,
+                pointValue: oldPosition.pointValue,
+                isFutures: oldPosition.isFutures,
+                contractSize: oldPosition.contractSize
+            ) + commissionPerOrder
+            return
+        }
+
         let position = SimulatedPosition(
             symbol: order.symbol,
             direction: order.direction,
-            quantity: order.quantity,
+            quantity: remainingQuantity,
             entryPrice: price,
             entryTime: candle.date,
             entryBarIndex: candle.index,
@@ -607,53 +943,77 @@ final class PaperTradingService {
             lastPrice: candle.close
         )
         account.openPositions.append(position)
-        account.cashBalance -= marginImpact(for: position)
+        account.cashBalance -= marginImpact(for: position) + commissionPerOrder
     }
 
     private func paperProcessingKey(symbol: String, isReplayMode: Bool) -> String {
         "\(symbol)|\(isReplayMode ? "replay" : "live")"
     }
 
-    private func close(_ position: SimulatedPosition, at price: Double, time: Date, barIndex: Int, reason: SimulatedExitReason) {
-        guard account.openPositions.contains(where: { $0.id == position.id }) else { return }
+    private func close(_ position: SimulatedPosition, quantity requestedQuantity: Double, at price: Double, time: Date, barIndex: Int, reason: SimulatedExitReason) {
+        guard let index = account.openPositions.firstIndex(where: { $0.id == position.id }) else { return }
+        let currentPosition = account.openPositions[index]
+        let closeQuantity = min(max(requestedQuantity, 0), currentPosition.quantity)
+        guard closeQuantity > 0 else { return }
         let profitLoss = profitLoss(
-            direction: position.direction,
-            entryPrice: position.entryPrice,
+            direction: currentPosition.direction,
+            entryPrice: currentPosition.entryPrice,
             exitPrice: price,
-            quantity: position.quantity,
-            tickSize: position.tickSize,
-            tickValue: position.tickValue,
-            isFutures: position.isFutures == true,
-            assetClass: position.assetClass,
-            contractSize: position.contractSize
+            quantity: closeQuantity,
+            tickSize: currentPosition.tickSize,
+            tickValue: currentPosition.tickValue,
+            isFutures: currentPosition.isFutures == true,
+            assetClass: currentPosition.assetClass,
+            contractSize: currentPosition.contractSize
         )
+        let commission = commissionPerOrder
+        let netProfitLoss = profitLoss - commission
 
-        let units = position.quantity * (position.contractSize ?? 1)
-        let basis = position.isFutures == true ? position.entryPrice * (position.pointValue ?? 1) * position.quantity : position.entryPrice * units
-        let percentReturn = basis == 0 ? 0 : (profitLoss / basis) * 100
-        account.openPositions.removeAll { $0.id == position.id }
-        account.cashBalance += marginImpact(for: position) + profitLoss
+        let units = closeQuantity * (currentPosition.contractSize ?? 1)
+        let basis = currentPosition.isFutures == true ? currentPosition.entryPrice * (currentPosition.pointValue ?? 1) * closeQuantity : currentPosition.entryPrice * units
+        let percentReturn = basis == 0 ? 0 : (netProfitLoss / basis) * 100
+        if closeQuantity >= currentPosition.quantity {
+            account.openPositions.remove(at: index)
+        } else {
+            account.openPositions[index].quantity = currentPosition.quantity - closeQuantity
+            account.openPositions[index].lastPrice = price
+        }
+
+        let releasedMargin = marginImpact(
+            symbol: currentPosition.symbol,
+            direction: currentPosition.direction,
+            quantity: closeQuantity,
+            entryPrice: currentPosition.entryPrice,
+            tickSize: currentPosition.tickSize,
+            tickValue: currentPosition.tickValue,
+            pointValue: currentPosition.pointValue,
+            isFutures: currentPosition.isFutures,
+            contractSize: currentPosition.contractSize
+        )
+        account.cashBalance += releasedMargin + netProfitLoss
         account.closedTrades.insert(
             SimulatedTrade(
                 id: UUID(),
-                symbol: position.symbol,
-                direction: position.direction,
-                entryTime: position.entryTime,
+                symbol: currentPosition.symbol,
+                direction: currentPosition.direction,
+                entryTime: currentPosition.entryTime,
                 exitTime: time,
-                entryBarIndex: position.entryBarIndex,
+                entryBarIndex: currentPosition.entryBarIndex,
                 exitBarIndex: barIndex,
-                entryPrice: position.entryPrice,
+                entryPrice: currentPosition.entryPrice,
                 exitPrice: price,
-                quantity: position.quantity,
-                stopLoss: position.stopLoss,
-                takeProfit: position.takeProfit,
-                tickSize: position.tickSize,
-                tickValue: position.tickValue,
-                pointValue: position.pointValue,
-                isFutures: position.isFutures,
-                assetClass: position.assetClass,
-                contractSize: position.contractSize,
-                profitLoss: profitLoss,
+                quantity: closeQuantity,
+                stopLoss: currentPosition.stopLoss,
+                takeProfit: currentPosition.takeProfit,
+                tickSize: currentPosition.tickSize,
+                tickValue: currentPosition.tickValue,
+                pointValue: currentPosition.pointValue,
+                isFutures: currentPosition.isFutures,
+                assetClass: currentPosition.assetClass,
+                contractSize: currentPosition.contractSize,
+                commission: commission,
+                slippage: nil,
+                profitLoss: netProfitLoss,
                 percentReturn: percentReturn,
                 exitReason: reason
             ),
@@ -661,18 +1021,152 @@ final class PaperTradingService {
         )
         sendPaperNotification(
             title: "Paper Trade \(reason.rawValue)",
-            body: "\(position.symbol) closed at \(price.priceText) · \(profitLoss.signedMoneyText)"
+            body: "\(currentPosition.symbol) closed at \(price.priceText) · \(netProfitLoss.signedMoneyText)"
         )
     }
 
     private func marginImpact(for position: SimulatedPosition) -> Double {
-        if position.isFutures == true {
-            return position.entryPrice * (position.pointValue ?? 1) * position.quantity * 0.05
+        marginImpact(
+            symbol: position.symbol,
+            direction: position.direction,
+            quantity: position.quantity,
+            entryPrice: position.entryPrice,
+            tickSize: position.tickSize,
+            tickValue: position.tickValue,
+            pointValue: position.pointValue,
+            isFutures: position.isFutures,
+            contractSize: position.contractSize
+        )
+    }
+
+    private func marginImpact(
+        symbol: String,
+        direction: TradeDirection,
+        quantity: Double,
+        entryPrice: Double,
+        tickSize: Double?,
+        tickValue: Double?,
+        pointValue: Double?,
+        isFutures: Bool?,
+        contractSize: Double?
+    ) -> Double {
+        if isFutures == true {
+            return entryPrice * (pointValue ?? 1) * quantity * 0.05
         }
-        return position.entryPrice * position.quantity * 0.5
+        return entryPrice * quantity * (contractSize ?? 1) * 0.5
+    }
+
+    private func closeOppositePositions(for order: SimulatedOrder, at price: Double, on candle: Candle) -> Double {
+        let oppositeDirection: TradeDirection = order.direction == .long ? .short : .long
+        var remaining = order.quantity
+        let matches = account.openPositions.filter {
+            $0.symbol == order.symbol &&
+            $0.direction == oppositeDirection &&
+            ($0.isReplayTrade == true) == (order.isReplayTrade == true)
+        }
+
+        for position in matches where remaining > 0 {
+            let closeQuantity = min(remaining, position.quantity)
+            close(position, quantity: closeQuantity, at: price, time: candle.date, barIndex: candle.index, reason: .manual)
+            remaining -= closeQuantity
+        }
+
+        return max(0, remaining)
+    }
+
+    private func upsertOrderHistory(_ order: SimulatedOrder) {
+        if let index = account.orderHistory.firstIndex(where: { $0.id == order.id }) {
+            account.orderHistory[index] = order
+        } else {
+            account.orderHistory.insert(order, at: 0)
+        }
+    }
+
+    private func expireOrder(_ order: SimulatedOrder, at date: Date) {
+        account.pendingOrders.removeAll { $0.id == order.id }
+        var expired = order
+        expired.status = .expired
+        expired.updatedAt = date
+        upsertOrderHistory(expired)
+    }
+
+    private func cancelOCOSiblings(of order: SimulatedOrder, at date: Date) {
+        guard let groupID = order.ocoGroupID else { return }
+        let siblings = account.pendingOrders.filter { $0.ocoGroupID == groupID && $0.id != order.id }
+        for sibling in siblings {
+            var cancelled = sibling
+            cancelled.status = .cancelled
+            cancelled.updatedAt = date
+            upsertOrderHistory(cancelled)
+        }
+        account.pendingOrders.removeAll { $0.ocoGroupID == groupID && $0.id != order.id }
+    }
+
+    private func executionPrice(for order: SimulatedOrder, basePrice: Double) -> Double {
+        guard slippageTicks > 0 else { return basePrice }
+        let tick = order.tickSize ?? instrumentsBySymbol[order.symbol]?.tickSize ?? 0.01
+        let adjustment = tick * slippageTicks
+        switch order.direction {
+        case .long:
+            return basePrice + adjustment
+        case .short:
+            return basePrice - adjustment
+        }
+    }
+
+    private func recordAccountSnapshot(on candle: Candle) {
+        recordAccountSnapshot(date: candle.date, barIndex: candle.index)
+    }
+
+    private func recordAccountSnapshot(date: Date, barIndex: Int) {
+        let snapshot = PaperAccountSnapshot(
+            date: date,
+            barIndex: barIndex,
+            cashBalance: account.cashBalance,
+            equity: account.equity,
+            portfolioValue: account.portfolioValue,
+            realizedPL: account.realizedPL,
+            unrealizedPL: account.unrealizedPL
+        )
+        if let last = account.equityHistory.last, last.barIndex == barIndex {
+            account.equityHistory[account.equityHistory.count - 1] = snapshot
+        } else {
+            account.equityHistory.append(snapshot)
+        }
+    }
+
+    private func orderForPositionFill(_ position: SimulatedPosition, quantity: Double, price: Double, time: Date, barIndex: Int) -> SimulatedOrder {
+        SimulatedOrder(
+            symbol: position.symbol,
+            direction: position.direction,
+            type: .market,
+            quantity: quantity,
+            entryPrice: price,
+            stopLoss: position.stopLoss,
+            takeProfit: position.takeProfit,
+            tickSize: position.tickSize,
+            tickValue: position.tickValue,
+            pointValue: position.pointValue,
+            isFutures: position.isFutures,
+            assetClass: position.assetClass,
+            contractSize: position.contractSize,
+            isReplayTrade: position.isReplayTrade,
+            timeInForce: .gtc,
+            filledQuantity: quantity,
+            averageFillPrice: price,
+            commission: commissionPerOrder,
+            createdAt: time,
+            createdBarIndex: barIndex,
+            status: .filled
+        )
+    }
+
+    private func syntheticCandle(price: Double, date: Date, index: Int) -> Candle {
+        Candle(index: index, date: date, open: price, high: price, low: price, close: price, volume: 0)
     }
 
     private func sendPaperNotification(title: String, body: String) {
+        guard requestNotificationsEnabled else { return }
         let content = UNMutableNotificationContent()
         content.title = title
         content.body = body

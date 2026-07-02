@@ -5097,6 +5097,7 @@ private struct PaperTradeManagementView: View {
                 VStack(spacing: 14) {
                     header
                     accountSummary
+                    PaperEquityHistoryView(points: paperTrading.account.equityHistory)
                     sectionPicker
                     sectionContent
                 }
@@ -5158,6 +5159,10 @@ private struct PaperTradeManagementView: View {
                     paperMetric("Realized P/L", paperTrading.account.realizedPL.signedMoneyText, paperTrading.account.realizedPL >= 0 ? .green : .red)
                     paperMetric("Open Risk", openRisk.signedMoneyText, openRisk <= 0 ? .secondary : .orange)
                 }
+                GridRow {
+                    paperMetric("Portfolio", paperTrading.account.portfolioValue.moneyText, .primary)
+                    paperMetric("Orders", "\(paperTrading.account.orderHistory.count)", .primary)
+                }
             }
         }
     }
@@ -5211,6 +5216,16 @@ private struct PaperTradeManagementView: View {
                     orderRow(order)
                 }
             }
+
+            sectionTitle("Order History", count: paperTrading.account.orderHistory.count)
+                .padding(.top, 6)
+            if paperTrading.account.orderHistory.isEmpty {
+                emptyState("No order history yet.")
+            } else {
+                ForEach(paperTrading.account.orderHistory.prefix(12)) { order in
+                    orderHistoryRow(order)
+                }
+            }
         }
         .paperSectionCard()
     }
@@ -5252,6 +5267,27 @@ private struct PaperTradeManagementView: View {
                     )
                 }
                 .font(.caption.bold())
+
+                HStack(spacing: 8) {
+                    Button("50%") {
+                        paperTrading.closePercentage(
+                            of: position,
+                            percent: 0.5,
+                            at: latestCandle?.close ?? position.lastPrice,
+                            time: latestCandle?.date ?? Date(),
+                            barIndex: latestCandle?.index ?? position.entryBarIndex
+                        )
+                    }
+                    Button("Reverse") {
+                        paperTrading.reversePosition(
+                            position,
+                            at: latestCandle?.close ?? position.lastPrice,
+                            time: latestCandle?.date ?? Date(),
+                            barIndex: latestCandle?.index ?? position.entryBarIndex
+                        )
+                    }
+                }
+                .font(.caption2.bold())
             }
         }
         .padding(10)
@@ -5292,6 +5328,50 @@ private struct PaperTradeManagementView: View {
         }
         .padding(10)
         .background(Color(.tertiarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 12))
+    }
+
+    private func orderHistoryRow(_ order: SimulatedOrder) -> some View {
+        HStack(alignment: .center, spacing: 10) {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 6) {
+                    Text(order.symbol)
+                        .font(.subheadline.bold())
+                    Text(order.direction.shortLabel)
+                        .font(.caption.bold())
+                        .foregroundStyle(order.direction == .long ? .green : .red)
+                    Text(order.type.rawValue)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Text("\(order.quantityText) @ \((order.averageFillPrice ?? order.entryPrice).priceText)")
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            VStack(alignment: .trailing, spacing: 4) {
+                Text(order.status.rawValue.capitalized)
+                    .font(.caption.bold())
+                    .foregroundStyle(orderStatusColor(order.status))
+                Text((order.updatedAt ?? order.createdAt).crosshairIntradayLabel)
+                    .font(.caption2.monospacedDigit())
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(10)
+        .background(Color(.tertiarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 12))
+    }
+
+    private func orderStatusColor(_ status: SimulatedOrderStatus) -> Color {
+        switch status {
+        case .pending:
+            return .orange
+        case .partiallyFilled:
+            return .cyan
+        case .filled:
+            return .green
+        case .cancelled, .expired:
+            return .secondary
+        }
     }
 
     private func sectionTitle(_ title: String, count: Int) -> some View {
@@ -5647,6 +5727,50 @@ private struct PaperStatsView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(9)
         .background(Color(.tertiarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 10))
+    }
+}
+
+private struct PaperEquityHistoryView: View {
+    let points: [PaperAccountSnapshot]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("Equity Curve")
+                    .font(.headline)
+                Spacer()
+                Text(points.last?.equity.moneyText ?? "--")
+                    .font(.caption.bold().monospacedDigit())
+                    .foregroundStyle(.secondary)
+            }
+
+            if points.count < 2 {
+                Text("Equity and portfolio history will appear after paper trades update.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.vertical, 8)
+            } else {
+                Chart(points) { point in
+                    LineMark(
+                        x: .value("Bar", point.barIndex),
+                        y: .value("Equity", point.equity)
+                    )
+                    .foregroundStyle(point.equity >= 100_000 ? .green : .red)
+                    .lineStyle(StrokeStyle(lineWidth: 2.2))
+
+                    AreaMark(
+                        x: .value("Bar", point.barIndex),
+                        y: .value("Equity", point.equity)
+                    )
+                    .foregroundStyle(.green.opacity(0.12))
+                }
+                .chartXAxis(.hidden)
+                .chartYAxis(.hidden)
+                .frame(height: 90)
+            }
+        }
+        .paperSectionCard()
     }
 }
 
